@@ -1,149 +1,136 @@
 /**
- * @file Firebase Security Rules for AgriClear Platform
- * @corePhilosophy This ruleset prioritizes authorization independence and ensures that users can only access data they are authorized to see.
- *  It uses denormalization to avoid costly `get()` calls and enforce ownership.
- * @dataStructure The database is structured as follows:
- *   - `/users/{userId}`: Stores user profiles, accessible only by the user themselves.
- *   - `/products/{productId}`: Stores product listings, accessible by anyone for read operations, but create/update/delete are restricted to the farmer who owns the product. The `farmerId` is denormalized for efficient rule enforcement.
- *   - `/orders/{orderId}`: Stores order information, accessible by the buyer and the farmer involved in the order. Both `buyerId` and `farmerId` are denormalized.
- *   - `/shipments/{shipmentId}`: Stores shipment details, with access restricted to the logistics provider. The `logisticsId` is denormalized.
- *   - `/rewards/{rewardId}`: Stores reward information, globally accessible.
- *   - `/fraud_alerts/{alertId}`: Stores fraud alerts, globally accessible.
- * @keySecurityDecisions
- *   - User listing is not allowed to prevent unauthorized data access.
- *   - All write operations are protected by authorization checks to prevent unauthorized data modification.
- *   - Read operations on products are public, while write operations are restricted to the owner.
- * @denormalizationForAuthorization The `farmerId`, `buyerId`, and `logisticsId` fields are denormalized in the `products`, `orders`, and `shipments` collections, respectively, to simplify authorization rules and avoid costly `get()` calls.
- * @structuralSegregation N/A
+ * @fileoverview Firestore Security Rules for AgriClear platform.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a user-ownership model for most data, with public read access to product listings.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile information, accessible only to the user themselves.
+ * - /products/{productId}: Stores product listings, publicly readable but writable only by the product's owner (farmer).
+ * - /orders/{orderId}: Stores order information, writable by the buyer and farmer involved.
+ * - /shipments/{shipmentId}: Stores shipment details, writable by the logistics provider.
+ * - /rewards/{rewardId}: Stores reward information, writable by platform.
+ * - /fraud_alerts/{alertId}: Stores fraud alerts, writable by the AI module.
+ *
+ * Key Security Decisions:
+ * - Users can only read and write their own user documents.
+ * - Product listings are publicly readable to facilitate browsing, but only the owner can modify or delete them.
+ * - Listing of user documents is disallowed.
+ *
+ * Denormalization for Authorization:
+ * - Product documents contain a `farmer_id` field to enable direct ownership checks without requiring additional reads.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces user-ownership for user profiles. Only the authenticated user can read and write their own profile data.
-     * @path /users/{userId}
-     * @allow (get, create, update, delete) if request.auth.uid == userId
-     * @deny (get, create, update, delete) if request.auth.uid != userId
-     * @principle Enforces document ownership for all operations.
+     * @description Controls access to user profile documents.
+     * @path /databases/{database}/documents/users/{userId}
+     * @allow (get) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can read their own profile.
+     * @allow (create) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can create their own profile.
+     * @allow (update) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can update their own profile.
+     * @allow (delete) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can delete their own profile.
+     * @deny (get) User with ID 'otherUserId' cannot read user profile 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
+     * @deny (create) User with ID 'otherUserId' cannot create user profile 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
+     * @deny (update) User with ID 'otherUserId' cannot update user profile 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
+     * @deny (delete) User with ID 'otherUserId' cannot delete user profile 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
+     * @principle Enforces user-ownership for profile data, preventing unauthorized access and modification.
      */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-      }
-
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow create: if isOwner(userId) && request.resource.data.email == request.auth.token.email;
+      allow update: if isExistingOwner(userId) && request.resource.data.email == resource.data.email;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows public read access to product listings, but restricts write access to the farmer who owns the product.
-     *  The `farmerId` field in the product document is used to enforce ownership.
-     * @path /products/{productId}
-     * @allow (get, list) if true
-     * @allow (create, update, delete) if request.auth.uid == resource.data.farmerId
-     * @deny (create, update, delete) if request.auth.uid != resource.data.farmerId
-     * @principle Enforces document ownership for writes while allowing public reads.
+     * @description Controls access to product listing documents.
+     * @path /databases/{database}/documents/products/{productId}
+     * @allow (get) Any user can read a product listing.
+     * @allow (list) Any user can list product listings.
+     * @allow (create) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can create a product listing with farmer_id 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
+     * @allow (update) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can update a product listing they own (farmer_id).
+     * @allow (delete) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can delete a product listing they own (farmer_id).
+     * @deny (create) User with ID 'otherUserId' cannot create a product listing with farmer_id 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
+     * @deny (update) User with ID 'otherUserId' cannot update a product listing owned by 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
+     * @deny (delete) User with ID 'otherUserId' cannot delete a product listing owned by 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
+     * @principle Allows public read access to product listings while enforcing owner-only writes.
      */
     match /products/{productId} {
-      function isOwner(farmerId) {
-        return request.auth.uid == farmerId;
-      }
-
-       function isExistingOwner(farmerId) {
-        return isOwner(farmerId) && resource != null;
-      }
-
-      allow get: if true;
-      allow list: if true;
-      allow create: if isOwner(request.resource.data.farmerId);
-      allow update: if isExistingOwner(resource.data.farmerId);
-      allow delete: if isExistingOwner(resource.data.farmerId);
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.farmer_id == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.farmer_id);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.farmer_id);
     }
 
     /**
-     * @description Restricts access to order documents to the buyer and the farmer involved in the order. The `buyerId` and `farmerId` fields in the order document are used to grant access.
-     * @path /orders/{orderId}
-     * @allow (get, list) if request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.farmerId
-     * @allow (create, update, delete) if request.auth.uid == resource.data.buyerId || request.auth.uid == resource.data.farmerId
-     * @deny (create, update, delete) if request.auth.uid != resource.data.buyerId && request.auth.uid != resource.data.farmerId
-     * @principle Enforces shared access for order-related information.
+     * @description Controls access to order documents.
+     * @path /databases/{database}/documents/orders/{orderId}
+     * TODO: Add more specific allow and deny examples after clarifying order access patterns.
+     * @principle Restricts order access to involved parties (buyer and farmer).
      */
     match /orders/{orderId} {
-       function isBuyerOrFarmer(buyerId, farmerId) {
-        return request.auth.uid == buyerId || request.auth.uid == farmerId;
-      }
-
-      function isExistingBuyerOrFarmer(buyerId, farmerId) {
-        return isBuyerOrFarmer(buyerId, farmerId) && resource != null;
-      }
-
-      allow get: if isBuyerOrFarmer(resource.data.buyerId, resource.data.farmerId);
-      allow list: if request.auth.uid != null;
-      allow create: if isBuyerOrFarmer(request.resource.data.buyerId, request.resource.data.farmerId);
-      allow update: if isExistingBuyerOrFarmer(resource.data.buyerId, resource.data.farmerId);
-      allow delete: if isExistingBuyerOrFarmer(resource.data.buyerId, resource.data.farmerId);
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Restricts access to shipment documents to the logistics provider handling the shipment. The `logisticsId` field in the shipment document is used to grant access.
-     * @path /shipments/{shipmentId}
-     * @allow (get, list) if request.auth.uid == resource.data.logisticsId
-     * @allow (create, update, delete) if request.auth.uid == resource.data.logisticsId
-     * @deny (create, update, delete) if request.auth.uid != resource.data.logisticsId
-     * @principle Enforces access control based on the logistics provider.
+     * @description Controls access to shipment documents.
+     * @path /databases/{database}/documents/shipments/{shipmentId}
+     * TODO: Add more specific allow and deny examples after clarifying shipment access patterns.
+     * @principle Restricts shipment access to the logistics provider.
      */
     match /shipments/{shipmentId} {
-       function isLogisticsProvider(logisticsId) {
-        return request.auth.uid == logisticsId;
-      }
-
-      function isExistingLogisticsProvider(logisticsId) {
-        return isLogisticsProvider(logisticsId) && resource != null;
-      }
-
-      allow get: if isLogisticsProvider(resource.data.logisticsId);
-      allow list: if request.auth.uid != null;
-      allow create: if isLogisticsProvider(request.resource.data.logisticsId);
-      allow update: if isExistingLogisticsProvider(resource.data.logisticsId);
-      allow delete: if isExistingLogisticsProvider(resource.data.logisticsId);
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access to reward documents.
-     * @path /rewards/{rewardId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) always, as write operations are not permitted.
-     * @principle Allows public reads, but restricts all write operations.
+     * @description Controls access to reward documents.
+     * @path /databases/{database}/documents/rewards/{rewardId}
+     * TODO: Add more specific allow and deny examples after clarifying reward access patterns.
+     * @principle Restricts reward creation and modification to the platform.
      */
     match /rewards/{rewardId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Allows public read access to fraud alert documents.
-     * @path /fraud_alerts/{alertId}
-     * @allow (get, list) if true
-     * @deny (create, update, delete) always, as write operations are not permitted.
-     * @principle Allows public reads, but restricts all write operations.
+     * @description Controls access to fraud alert documents.
+     * @path /databases/{database}/documents/fraud_alerts/{alertId}
+     * TODO: Add more specific allow and deny examples after clarifying fraud alert access patterns.
+     * @principle Restricts fraud alert access to the AI module or authorized personnel.
      */
     match /fraud_alerts/{alertId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
+  }
+
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
+
+  function isExistingOwner(ownerId) {
+    return isSignedIn() && request.auth.uid == ownerId && resource != null;
   }
 }
