@@ -166,7 +166,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 const Icon = IconMap[item.icon as keyof typeof IconMap] || item.icon;
                 return(
                 <SidebarMenuItem key={item.label}>
-                    <Link href={item.href} legacyBehavior passHref>
+                    <Link href={item.href}>
                         <SidebarMenuButton
                             isActive={pathname === item.href}
                             icon={Icon}
