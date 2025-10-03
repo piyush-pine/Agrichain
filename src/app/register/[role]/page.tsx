@@ -1,5 +1,5 @@
 'use client';
-
+import React from 'react';
 import {
   Card,
   CardContent,
@@ -50,12 +50,13 @@ function capitalizeFirstLetter(string: string) {
 export default function RegisterRolePage({
   params,
 }: {
-  params: { role: string };
+  params: Promise<{ role: string }>;
 }) {
+  const resolvedParams = React.use(params);
   const { toast } = useToast();
   const router = useRouter();
-  const role = params.role ? capitalizeFirstLetter(params.role) : 'User';
-  const roleId = params.role || 'user';
+  const role = resolvedParams.role ? capitalizeFirstLetter(resolvedParams.role) : 'User';
+  const roleId = resolvedParams.role || 'user';
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
