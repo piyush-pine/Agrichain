@@ -89,27 +89,29 @@ const RoleCard = ({ role }: { role: (typeof roles)[0] }) => {
   const colors = colorClasses[role.color as keyof typeof colorClasses];
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 transition duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl">
-      <div className={`${colors.bg} p-6`}>
-        <div className={`${colors.iconBg} w-14 h-14 rounded-full flex items-center justify-center mx-auto`}>
-          <Icon className={`w-6 h-6 ${colors.iconText}`} />
+    <Link href={role.link} className="block h-full">
+      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 transition duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl h-full flex flex-col">
+        <div className={`${colors.bg} p-6`}>
+          <div className={`${colors.iconBg} w-14 h-14 rounded-full flex items-center justify-center mx-auto`}>
+            <Icon className={`w-6 h-6 ${colors.iconText}`} />
+          </div>
+          <h3 className="mt-4 text-xl font-semibold text-center text-gray-900">{role.name}</h3>
         </div>
-        <h3 className="mt-4 text-xl font-semibold text-center text-gray-900">{role.name}</h3>
+        <div className="p-6 flex flex-col flex-grow">
+          <ul className="space-y-3 flex-grow">
+            {role.features.map((feature, i) => (
+              <li key={i} className="flex items-start">
+                <Check className={`w-5 h-5 ${colors.check} mt-0.5 mr-2 flex-shrink-0`} />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+          <Button tabIndex={-1} className={`mt-6 w-full text-white ${colors.button}`}>
+            {role.action}
+          </Button>
+        </div>
       </div>
-      <div className="p-6 flex flex-col h-full">
-        <ul className="space-y-3 flex-grow">
-          {role.features.map((feature, i) => (
-            <li key={i} className="flex items-start">
-              <Check className={`w-5 h-5 ${colors.check} mt-0.5 mr-2 flex-shrink-0`} />
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
-        <Button asChild className={`mt-6 w-full text-white ${colors.button}`}>
-          <Link href={role.link}>{role.action}</Link>
-        </Button>
-      </div>
-    </div>
+    </Link>
   );
 };
 
