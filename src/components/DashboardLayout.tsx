@@ -10,6 +10,7 @@ import {
   SidebarMenuButton,
   SidebarProvider,
   SidebarTrigger,
+  SidebarInset,
 } from '@/components/ui/sidebar';
 import { useUser } from '@/firebase/auth/use-user';
 import Link from 'next/link';
