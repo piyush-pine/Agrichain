@@ -1,136 +1,177 @@
 /**
- * @fileoverview Firestore Security Rules for AgriClear platform.
- *
- * Core Philosophy:
- * This ruleset enforces a user-ownership model for most data, with public read access to product listings.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for user-specific data and allows public read access to product listings.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information, accessible only to the user themselves.
- * - /products/{productId}: Stores product listings, publicly readable but writable only by the product's owner (farmer).
- * - /orders/{orderId}: Stores order information, writable by the buyer and farmer involved.
- * - /shipments/{shipmentId}: Stores shipment details, writable by the logistics provider.
- * - /rewards/{rewardId}: Stores reward information, writable by platform.
- * - /fraud_alerts/{alertId}: Stores fraud alerts, writable by the AI module.
+ * - /users/{userId}: Stores user profiles, accessible only to the owner.
+ * - /users/{userId}/cart/{productId}: Stores cart items for each user, accessible only to the owner.
+ * - /products/{productId}: Stores product listings, publicly readable, but writable only by the owner (farmer).
+ * - /orders/{orderId}: Stores order information, access is not defined yet.
+ * - /shipments/{shipmentId}: Stores shipment details, access is not defined yet.
+ * - /rewards/{rewardId}: Stores reward information, access is not defined yet.
+ * - /fraud_alerts/{alertId}: Stores fraud alerts, access is not defined yet.
  *
  * Key Security Decisions:
- * - Users can only read and write their own user documents.
- * - Product listings are publicly readable to facilitate browsing, but only the owner can modify or delete them.
- * - Listing of user documents is disallowed.
+ * - Users can only access their own profile data and cart items.
+ * - Product listings are publicly readable but only the farmer who listed them can modify them.
+ * - Other collections have placeholder rules and should be reviewed and updated with appropriate access control.
  *
  * Denormalization for Authorization:
- * - Product documents contain a `farmer_id` field to enable direct ownership checks without requiring additional reads.
+ * - The 'Product' entity requires a 'farmer_id' field to enforce owner-only writes. The rules will validate that this field matches the authenticated user's UID during creation, updates, and deletes.
+ *
+ * Structural Segregation:
+ * - User-specific data (profile, cart) is stored under the /users/{userId} path, ensuring private access.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
-     * @path /databases/{database}/documents/users/{userId}
-     * @allow (get) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can read their own profile.
-     * @allow (create) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can create their own profile.
-     * @allow (update) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can update their own profile.
-     * @allow (delete) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can delete their own profile.
-     * @deny (get) User with ID 'otherUserId' cannot read user profile 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
-     * @deny (create) User with ID 'otherUserId' cannot create user profile 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
-     * @deny (update) User with ID 'otherUserId' cannot update user profile 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
-     * @deny (delete) User with ID 'otherUserId' cannot delete user profile 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
-     * @principle Enforces user-ownership for profile data, preventing unauthorized access and modification.
+     * @description Enforces user-ownership for user profiles.
+     * @path /users/{userId}
+     * @allow (create) User with UID 'user123' can create their profile at /users/user123.
+     * @deny (create) User with UID 'user123' cannot create a profile at /users/anotherUser.
+     * @allow (get) User with UID 'user123' can read their profile at /users/user123.
+     * @deny (get) User with UID 'user123' cannot read another user's profile at /users/anotherUser.
+     * @allow (update) User with UID 'user123' can update their profile at /users/user123.
+     * @deny (update) User with UID 'user123' cannot update another user's profile at /users/anotherUser.
+     * @allow (delete) User with UID 'user123' can delete their profile at /users/user123.
+     * @deny (delete) User with UID 'user123' cannot delete another user's profile at /users/anotherUser.
+     * @principle Enforces document ownership for all operations on user profiles.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.email == request.auth.token.email;
-      allow update: if isExistingOwner(userId) && request.resource.data.email == resource.data.email;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to product listing documents.
-     * @path /databases/{database}/documents/products/{productId}
-     * @allow (get) Any user can read a product listing.
-     * @allow (list) Any user can list product listings.
-     * @allow (create) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can create a product listing with farmer_id 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
-     * @allow (update) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can update a product listing they own (farmer_id).
-     * @allow (delete) User with ID 'EweVZVaQogUBykO1U1QWdvqbNYz2' can delete a product listing they own (farmer_id).
-     * @deny (create) User with ID 'otherUserId' cannot create a product listing with farmer_id 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
-     * @deny (update) User with ID 'otherUserId' cannot update a product listing owned by 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
-     * @deny (delete) User with ID 'otherUserId' cannot delete a product listing owned by 'EweVZVaQogUBykO1U1QWdvqbNYz2'.
-     * @principle Allows public read access to product listings while enforcing owner-only writes.
+     * @description Enforces user-ownership for cart items.
+     * @path /users/{userId}/cart/{productId}
+     * @allow (create) User with UID 'user123' can add item 'product456' to their cart at /users/user123/cart/product456.
+     * @deny (create) User with UID 'user123' cannot add an item to another user's cart.
+     * @allow (get) User with UID 'user123' can retrieve item 'product456' from their cart.
+     * @deny (get) User with UID 'user123' cannot retrieve items from another user's cart.
+     * @allow (update) User with UID 'user123' can update item 'product456' in their cart.
+     * @deny (update) User with UID 'user123' cannot update items in another user's cart.
+     * @allow (delete) User with UID 'user123' can delete item 'product456' from their cart.
+     * @deny (delete) User with UID 'user123' cannot delete items from another user's cart.
+     * @principle Restricts cart access to the owning user.
+     */
+    match /users/{userId}/cart/{productId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Allows public read access to products, but restricts writes to the product's owner (farmer).
+     * @path /products/{productId}
+     * @allow (get) Any user can read product 'product789'.
+     * @allow (list) Any user can list products.
+     * @allow (create) User with UID 'farmer123' can create a product listing with farmer_id 'farmer123'.
+     * @deny (create) User with UID 'buyer456' cannot create a product listing with farmer_id 'farmer123'.
+     * @allow (update) User with UID 'farmer123' can update product 'product789' if they are the owner (farmer_id matches).
+     * @deny (update) User with UID 'buyer456' cannot update product 'product789' even if they know the product ID.
+     * @allow (delete) User with UID 'farmer123' can delete product 'product789' if they are the owner.
+     * @deny (delete) User with UID 'buyer456' cannot delete product 'product789'.
+     * @principle Allows public read access while enforcing document ownership for writes.
      */
     match /products/{productId} {
-      allow get, list: if true;
+      allow get: if true;
+      allow list: if true;
       allow create: if isSignedIn() && request.resource.data.farmer_id == request.auth.uid;
       allow update: if isSignedIn() && isExistingOwner(resource.data.farmer_id);
       allow delete: if isSignedIn() && isExistingOwner(resource.data.farmer_id);
     }
 
     /**
-     * @description Controls access to order documents.
-     * @path /databases/{database}/documents/orders/{orderId}
-     * TODO: Add more specific allow and deny examples after clarifying order access patterns.
-     * @principle Restricts order access to involved parties (buyer and farmer).
+     * @description Placeholder rules for orders.  Define access control based on roles and order status.
+     * @path /orders/{orderId}
+     * @allow (get) TODO: Define access control for order retrieval.
+     * @allow (list) TODO: Define access control for listing orders.
+     * @allow (create) TODO: Define access control for order creation.
+     * @allow (update) TODO: Define access control for order updates.
+     * @allow (delete) TODO: Define access control for order deletion.
+     * @principle TODO: Implement role-based access control.
      */
     match /orders/{orderId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get: if false; // TODO: Add access control
+      allow list: if false;
+      allow create: if false; // TODO: Add access control
+      allow update: if false; // TODO: Add access control
+      allow delete: if false; // TODO: Add access control
     }
 
     /**
-     * @description Controls access to shipment documents.
-     * @path /databases/{database}/documents/shipments/{shipmentId}
-     * TODO: Add more specific allow and deny examples after clarifying shipment access patterns.
-     * @principle Restricts shipment access to the logistics provider.
+     * @description Placeholder rules for shipments.  Define access control based on logistics roles.
+     * @path /shipments/{shipmentId}
+     * @allow (get) TODO: Define access control for shipment retrieval.
+     * @allow (list) TODO: Define access control for listing shipments.
+     * @allow (create) TODO: Define access control for shipment creation.
+     * @allow (update) TODO: Define access control for shipment updates.
+     * @allow (delete) TODO: Define access control for shipment deletion.
+     * @principle TODO: Implement role-based access control.
      */
     match /shipments/{shipmentId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get: if false; // TODO: Add access control
+      allow list: if false;
+      allow create: if false; // TODO: Add access control
+      allow update: if false; // TODO: Add access control
+      allow delete: if false; // TODO: Add access control
     }
 
     /**
-     * @description Controls access to reward documents.
-     * @path /databases/{database}/documents/rewards/{rewardId}
-     * TODO: Add more specific allow and deny examples after clarifying reward access patterns.
-     * @principle Restricts reward creation and modification to the platform.
+     * @description Placeholder rules for rewards. Define access control based on user roles.
+     * @path /rewards/{rewardId}
+     * @allow (get) TODO: Define access control for reward retrieval.
+     * @allow (list) TODO: Define access control for listing rewards.
+     * @allow (create) TODO: Define access control for reward creation.
+     * @allow (update) TODO: Define access control for reward updates.
+     * @allow (delete) TODO: Define access control for reward deletion.
+     * @principle TODO: Implement role-based access control.
      */
     match /rewards/{rewardId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get: if false; // TODO: Add access control
+      allow list: if false;
+      allow create: if false; // TODO: Add access control
+      allow update: if false; // TODO: Add access control
+      allow delete: if false; // TODO: Add access control
     }
 
     /**
-     * @description Controls access to fraud alert documents.
-     * @path /databases/{database}/documents/fraud_alerts/{alertId}
-     * TODO: Add more specific allow and deny examples after clarifying fraud alert access patterns.
-     * @principle Restricts fraud alert access to the AI module or authorized personnel.
+     * @description Placeholder rules for fraud alerts. Define access control based on admin roles.
+     * @path /fraud_alerts/{alertId}
+     * @allow (get) TODO: Define access control for fraud alert retrieval.
+     * @allow (list) TODO: Define access control for listing fraud alerts.
+     * @allow (create) TODO: Define access control for fraud alert creation.
+     * @allow (update) TODO: Define access control for fraud alert updates.
+     * @allow (delete) TODO: Define access control for fraud alert deletion.
+     * @principle TODO: Implement role-based access control.
      */
     match /fraud_alerts/{alertId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow get: if false; // TODO: Add access control
+      allow list: if false;
+      allow create: if false; // TODO: Add access control
+      allow update: if false; // TODO: Add access control
+      allow delete: if false; // TODO: Add access control
     }
   }
 
+  // Helper functions
   function isSignedIn() {
     return request.auth != null;
   }
 
   function isOwner(userId) {
-    return request.auth.uid == userId;
+    return isSignedIn() && request.auth.uid == userId;
   }
 
-  function isExistingOwner(ownerId) {
-    return isSignedIn() && request.auth.uid == ownerId && resource != null;
+    function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }
