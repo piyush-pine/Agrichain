@@ -9,18 +9,49 @@ import { Input } from "@/components/ui/input";
 import { Search, ShoppingCart, Filter } from "lucide-react";
 import Image from 'next/image';
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase';
-import { collection } from 'firebase/firestore';
-import { Badge } from '@/components/ui/badge';
+import { useCollection, setDocumentNonBlocking } from '@/firebase';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { useUser } from '@/firebase/auth/use-user';
+import { useToast } from '@/hooks/use-toast';
 
 export default function MarketplacePage() {
     const firestore = useFirestore();
+    const { user } = useUser();
+    const { toast } = useToast();
 
     const productsQuery = useMemoFirebase(() => {
         return collection(firestore, "products");
     }, [firestore]);
     
     const { data: products, isLoading } = useCollection(productsQuery);
+
+    const handleAddToCart = (product: any) => {
+        if (!user) {
+            toast({
+                variant: "destructive",
+                title: "Not Logged In",
+                description: "You must be logged in to add items to your cart.",
+            });
+            return;
+        }
+
+        const cartItemRef = doc(firestore, 'users', user.uid, 'cart', product.id);
+        const cartItemData = {
+            product_id: product.id,
+            quantity: 1, // Default to 1, can be updated in the cart view
+            added_at: serverTimestamp(),
+            product_name: product.name,
+            price: product.price,
+            image_url: product.image_url || `https://picsum.photos/seed/${product.id}/400/300`
+        };
+
+        setDocumentNonBlocking(cartItemRef, cartItemData, { merge: true });
+
+        toast({
+            title: "Added to Cart",
+            description: `${product.name} has been added to your cart.`,
+        });
+    };
 
     return (
         <DashboardLayout>
@@ -83,7 +114,7 @@ export default function MarketplacePage() {
                                 </CardContent>
                                 <CardFooter className="flex justify-between items-center">
                                     <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
-                                    <Button size="sm">
+                                    <Button size="sm" onClick={() => handleAddToCart(product)}>
                                         <ShoppingCart className="mr-2 h-4 w-4" />
                                         Add to Cart
                                     </Button>

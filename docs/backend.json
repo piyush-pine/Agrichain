@@ -256,6 +256,18 @@
         "detected_at": {"type": "string", "format": "date-time"}
       },
       "required": ["transaction_id", "type", "confidence", "resolved", "detected_at"]
+    },
+    "CartItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Cart Item",
+      "type": "object",
+      "description": "Represents an item in a user's shopping cart.",
+      "properties": {
+        "product_id": { "type": "string" },
+        "quantity": { "type": "number" },
+        "added_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["product_id", "quantity", "added_at"]
     }
   },
   "auth": {
@@ -265,6 +277,10 @@
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "Stores user profiles."
+    },
+    "/users/{userId}/cart/{productId}": {
+      "schema": { "$ref": "#/entities/CartItem" },
+      "description": "Stores items in a user's shopping cart."
     },
     "/products/{productId}": {
       "schema": { "$ref": "#/entities/Product" },
@@ -288,5 +304,3 @@
     }
   }
 }
-
-    
