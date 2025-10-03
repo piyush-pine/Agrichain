@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,7 +17,8 @@ import { useFirestore } from '@/firebase/provider';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { Upload } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
+import Image from 'next/image';
 
 const productSchema = z.object({
   name: z.string().min(3, 'Product name must be at least 3 characters'),
@@ -32,6 +33,7 @@ export default function NewProductPage() {
     const { user } = useUser();
     const firestore = useFirestore();
     const router = useRouter();
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     const form = useForm<z.infer<typeof productSchema>>({
         resolver: zodResolver(productSchema),
@@ -54,6 +56,8 @@ export default function NewProductPage() {
         }
 
         try {
+            // For now, we are not handling image uploads to a storage service.
+            // We are excluding the 'image' field from the data sent to Firestore.
             const { image, ...restOfValues } = values;
 
             const productData = {
@@ -80,6 +84,25 @@ export default function NewProductPage() {
                 description: error.message || 'Could not add the product.',
             });
         }
+    };
+    
+    const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            form.setValue('image', event.target.files);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const removeImage = () => {
+        setImagePreview(null);
+        form.setValue('image', null);
+        const fileInput = document.getElementById('dropzone-file') as HTMLInputElement;
+        if(fileInput) fileInput.value = '';
     };
 
 
@@ -158,16 +181,25 @@ export default function NewProductPage() {
                     <FormItem>
                         <FormLabel>Product Image</FormLabel>
                         <FormControl>
-                            <div className="flex items-center justify-center w-full">
-                                <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-secondary hover:bg-muted">
-                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <Upload className="w-8 h-8 mb-4 text-muted-foreground" />
-                                        <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                        <p className="text-xs text-muted-foreground">PNG, JPG or GIF (MAX. 800x400px)</p>
-                                    </div>
-                                    <input id="dropzone-file" type="file" className="hidden" onChange={(e) => field.onChange(e.target.files)} />
-                                </label>
-                            </div> 
+                            {imagePreview ? (
+                                <div className="relative w-full h-48 rounded-lg overflow-hidden border">
+                                    <Image src={imagePreview} alt="Product preview" layout="fill" objectFit="cover" />
+                                    <Button type="button" variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={removeImage}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center w-full">
+                                    <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-secondary hover:bg-muted">
+                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                            <Upload className="w-8 h-8 mb-4 text-muted-foreground" />
+                                            <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
+                                            <p className="text-xs text-muted-foreground">PNG, JPG or GIF (MAX. 800x400px)</p>
+                                        </div>
+                                        <input id="dropzone-file" type="file" className="hidden" onChange={handleImageChange} accept="image/png, image/jpeg, image/gif" />
+                                    </label>
+                                </div>
+                            )}
                         </FormControl>
                         <FormMessage />
                     </FormItem>
