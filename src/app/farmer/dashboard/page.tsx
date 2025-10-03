@@ -15,9 +15,11 @@ import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import React from "react";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
-  Shipped: "default",
-  Processing: "secondary",
-  Delivered: "success",
+  shipped: "default",
+  processing: "secondary",
+  delivered: "success",
+  pending: "outline",
+  confirmed: "default",
 };
 
 export default function FarmerDashboardPage() {
@@ -38,7 +40,7 @@ export default function FarmerDashboardPage() {
   const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery);
 
   const totalRevenue = orders?.reduce((acc, order) => acc + order.amount, 0) || 0;
-  const openOrdersCount = orders?.filter(o => o.status !== 'Delivered' && o.status !== 'Shipped').length || 0;
+  const openOrdersCount = orders?.filter(o => o.status !== 'delivered' && o.status !== 'shipped').length || 0;
 
   const stats = [
       { title: "Total Products", value: products?.length ?? 0, icon: Leaf, change: "", changeType: "increase" },
@@ -95,7 +97,7 @@ export default function FarmerDashboardPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Order ID</TableHead>
-                            <TableHead>Product Name</TableHead>
+                            <TableHead>Items</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
@@ -108,15 +110,20 @@ export default function FarmerDashboardPage() {
                             </TableRow>
                         ) : recentOrders.map((order) => (
                             <TableRow key={order.id}>
-                                <TableCell className="font-medium">{order.id.slice(0,6)}...</TableCell>
+                                <TableCell className="font-medium">#{order.id.slice(0,6)}...</TableCell>
                                 <TableCell>{order.items.map((i:any) => i.product_name).join(', ')}</TableCell>
                                 <TableCell>{order.created_at ? new Date(order.created_at.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
                                 <TableCell>
-                                    <Badge variant={statusVariant[order.status] || "default"}>{order.status}</Badge>
+                                    <Badge variant={statusVariant[order.status.toLowerCase()] || "default"}>{order.status}</Badge>
                                 </TableCell>
                                 <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
                             </TableRow>
                         ))}
+                         { !ordersLoading && recentOrders.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center">You have no recent orders.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>

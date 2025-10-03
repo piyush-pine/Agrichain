@@ -146,10 +146,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
   
   const currentNav = navItems[role] || [];
-  const IconMap = {
-    LayoutDashboard, Users, ShieldCheck, ShoppingBag, Package, Leaf, Award, Truck
-  }
-
+  
   return (
     <SidebarProvider>
         <Sidebar variant="sidebar" collapsible="icon">
@@ -163,21 +160,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {currentNav.map((item) => {
-                const Icon = IconMap[item.icon as keyof typeof IconMap] || item.icon;
-                return(
+              {currentNav.map((item) => (
                 <SidebarMenuItem key={item.label}>
                     <Link href={item.href}>
                         <SidebarMenuButton
                             isActive={pathname === item.href}
-                            icon={Icon}
+                            icon={item.icon}
                             tooltip={item.label}
                         >
                             {item.label}
                         </SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
-              )})}
+              ))}
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
