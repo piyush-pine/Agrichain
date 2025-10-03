@@ -1,23 +1,25 @@
 
+'use client';
+
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Award, DollarSign, Leaf } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Activity, Award, DollarSign, Leaf, PlusCircle } from "lucide-react";
+import { useUser } from "@/firebase/auth/use-user";
 
 const stats = [
-    { title: "Total Products", value: "12", icon: Leaf },
-    { title: "Open Orders", value: "5", icon: Activity },
-    { title: "Total Revenue", value: "$1,250", icon: DollarSign },
-    { title: "Sustainability Tokens", value: "85 AGR", icon: Award },
+    { title: "Total Products", value: "12", icon: Leaf, change: "+5 this month" },
+    { title: "Open Orders", value: "5", icon: Activity, change: "+2 today" },
+    { title: "Total Revenue", value: "$1,250", icon: DollarSign, change: "+20.1% this month" },
+    { title: "Sustainability Tokens", value: "85 AGR", icon: Award, change: "+15 earned" },
 ];
 
 const recentOrders = [
     { id: "ORD001", product: "Organic Tomatoes", date: "2023-10-26", status: "Shipped", amount: "$50.00" },
     { id: "ORD002", product: "Basmati Rice", date: "2023-10-25", status: "Processing", amount: "$120.00" },
     { id: "ORD003", product: "Fresh Mangoes", date: "2023-10-25", status: "Delivered", amount: "$75.00" },
-    { id: "ORD004", product: "Organic Turmeric", date: "2023-10-24", status: "Shipped", amount: "$30.00" },
-    { id: "ORD005", product: "Wheat Flour", date: "2023-10-23", status: "Delivered", amount: "$25.00" },
 ];
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
@@ -26,10 +28,23 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
   Delivered: "outline",
 };
 
-
 export default function FarmerDashboardPage() {
+  const { user } = useUser();
+
   return (
-    <div className="grid gap-6">
+    <DashboardLayout>
+      <div className="flex flex-col gap-6">
+        <div className="flex justify-between items-center">
+            <div>
+                <h1 className="text-2xl font-bold">Welcome, {user?.displayName || 'Farmer'}!</h1>
+                <p className="text-muted-foreground">Here's a snapshot of your farm's activity.</p>
+            </div>
+            <Button>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Add New Product
+            </Button>
+        </div>
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {stats.map((stat) => (
                 <Card key={stat.title}>
@@ -40,16 +55,18 @@ export default function FarmerDashboardPage() {
                     <CardContent>
                         <div className="text-2xl font-bold">{stat.value}</div>
                         <p className="text-xs text-muted-foreground">
-                            +20.1% from last month
+                            {stat.change}
                         </p>
                     </CardContent>
                 </Card>
             ))}
         </div>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+        <div className="grid grid-cols-1 gap-6">
             <Card>
                 <CardHeader>
                     <CardTitle>Recent Orders</CardTitle>
+                    <CardDescription>A summary of your most recent sales.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -57,6 +74,7 @@ export default function FarmerDashboardPage() {
                             <TableRow>
                                 <TableHead>Order ID</TableHead>
                                 <TableHead>Product</TableHead>
+                                <TableHead>Date</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                             </TableRow>
@@ -66,6 +84,7 @@ export default function FarmerDashboardPage() {
                                 <TableRow key={order.id}>
                                     <TableCell className="font-medium">{order.id}</TableCell>
                                     <TableCell>{order.product}</TableCell>
+                                    <TableCell>{order.date}</TableCell>
                                     <TableCell>
                                         <Badge variant={statusVariant[order.status] || "default"}>{order.status}</Badge>
                                     </TableCell>
@@ -76,19 +95,8 @@ export default function FarmerDashboardPage() {
                     </Table>
                 </CardContent>
             </Card>
-             <Card>
-                <CardHeader>
-                    <CardTitle>Sustainability Rewards</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center text-center p-8">
-                     <Award className="w-16 h-16 text-green-500 mb-4" />
-                     <p className="text-4xl font-bold text-gray-800">85 AGR</p>
-                     <p className="text-sm text-muted-foreground mt-2">
-                         You have earned 85 AgriClear tokens for your sustainable farming practices.
-                     </p>
-                </CardContent>
-            </Card>
         </div>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
