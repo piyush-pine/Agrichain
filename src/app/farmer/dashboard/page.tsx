@@ -109,7 +109,7 @@ export default function FarmerDashboardPage() {
                         ) : recentOrders.map((order) => (
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">{order.id.slice(0,6)}...</TableCell>
-                                <TableCell>{order.product_name || 'N/A'}</TableCell>
+                                <TableCell>{order.items.map((i:any) => i.product_name).join(', ')}</TableCell>
                                 <TableCell>{order.created_at ? new Date(order.created_at.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
                                 <TableCell>
                                     <Badge variant={statusVariant[order.status] || "default"}>{order.status}</Badge>
