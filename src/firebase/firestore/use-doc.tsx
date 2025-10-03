@@ -1,58 +1,93 @@
 'use client';
+    
+import { useState, useEffect } from 'react';
 import {
-  doc,
+  DocumentReference,
   onSnapshot,
   DocumentData,
-  DocumentReference,
+  FirestoreError,
+  DocumentSnapshot,
 } from 'firebase/firestore';
-import { useEffect, useState, useMemo } from 'react';
-import { useFirestore } from '../provider';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
-type DocState<T> = {
-  data: T | null;
-  loading: boolean;
-  error: Error | null;
-};
+/** Utility type to add an 'id' field to a given type T. */
+type WithId<T> = T & { id: string };
 
 /**
- * A hook that listens for changes to a Firestore document.
- *
- * This hook must be used within a `FirebaseProvider` component.
+ * Interface for the return value of the useDoc hook.
+ * @template T Type of the document data.
  */
-export function useDoc<T extends DocumentData>(
-  collectionName: string,
-  docId: string
-): DocState<T> {
-  const [state, setState] = useState<DocState<T>>({
-    data: null,
-    loading: true,
-    error: null,
-  });
-  const db = useFirestore();
+export interface UseDocResult<T> {
+  data: WithId<T> | null; // Document data with ID, or null.
+  isLoading: boolean;       // True if loading.
+  error: FirestoreError | Error | null; // Error object, or null.
+}
 
-  const docRef = useMemo(
-    () => doc(db, collectionName, docId) as DocumentReference<T>,
-    [db, collectionName, docId]
-  );
+/**
+ * React hook to subscribe to a single Firestore document in real-time.
+ * Handles nullable references.
+ * 
+ * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
+ * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
+ * references
+ *
+ *
+ * @template T Optional type for document data. Defaults to any.
+ * @param {DocumentReference<DocumentData> | null | undefined} docRef -
+ * The Firestore DocumentReference. Waits if null/undefined.
+ * @returns {UseDocResult<T>} Object with data, isLoading, error.
+ */
+export function useDoc<T = any>(
+  memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
+): UseDocResult<T> {
+  type StateDataType = WithId<T> | null;
+
+  const [data, setData] = useState<StateDataType>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
+    if (!memoizedDocRef) {
+      setData(null);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    // Optional: setData(null); // Clear previous data instantly
+
     const unsubscribe = onSnapshot(
-      docRef,
-      (snapshot) => {
+      memoizedDocRef,
+      (snapshot: DocumentSnapshot<DocumentData>) => {
         if (snapshot.exists()) {
-          const data = { id: snapshot.id, ...snapshot.data() } as T;
-          setState({ data, loading: false, error: null });
+          setData({ ...(snapshot.data() as T), id: snapshot.id });
         } else {
-          setState({ data: null, loading: false, error: new Error('Document does not exist') });
+          // Document does not exist
+          setData(null);
         }
+        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
+        setIsLoading(false);
       },
-      (error) => {
-        setState({ data: null, loading: false, error });
+      (error: FirestoreError) => {
+        const contextualError = new FirestorePermissionError({
+          operation: 'get',
+          path: memoizedDocRef.path,
+        })
+
+        setError(contextualError)
+        setData(null)
+        setIsLoading(false)
+
+        // trigger global error propagation
+        errorEmitter.emit('permission-error', contextualError);
       }
     );
 
     return () => unsubscribe();
-  }, [docRef]);
+  }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
 
-  return state;
+  return { data, isLoading, error };
 }

@@ -1,46 +1,613 @@
 {
   "entities": {
-    "UserProfile": {
-      "title": "User Profile",
-      "description": "Represents a user's profile in the system.",
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
       "type": "object",
+      "description": "Represents a user within the AgriClear platform.",
       "properties": {
-        "uid": {
+        "id": {
           "type": "string",
-          "description": "The user's unique ID."
-        },
-        "name": {
-          "type": "string",
-          "description": "The user's full name."
-        },
-        "email": {
-          "type": "string",
-          "format": "email",
-          "description": "The user's email address."
+          "description": "Unique identifier for the user entity."
         },
         "role": {
           "type": "string",
-          "description": "The user's role.",
-          "enum": ["admin", "buyer", "farmer", "logistics"]
+          "description": "The role of the user (Farmer, Buyer, Logistics, Admin)."
         },
-        "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The date and time the user was created."
+        "digitalId": {
+          "type": "string",
+          "description": "Aadhaar-style digital ID for user verification."
+        },
+        "contactInformation": {
+          "type": "string",
+          "description": "Email or phone number of user."
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "Date the user registered on the platform.",
+          "format": "date-time"
         }
       },
-      "required": ["uid", "name", "email", "role", "createdAt"]
+      "required": [
+        "id",
+        "role",
+        "digitalId",
+        "contactInformation",
+        "registrationDate"
+      ]
+    },
+    "FarmerProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FarmerProfile",
+      "type": "object",
+      "description": "Represents the profile information for a farmer or MSME.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the FarmerProfile entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 FarmerProfile)"
+        },
+        "farmName": {
+          "type": "string",
+          "description": "Name of the farm or MSME."
+        },
+        "farmLocation": {
+          "type": "string",
+          "description": "Geographic location of the farm."
+        },
+        "certifications": {
+          "type": "array",
+          "description": "List of certifications held by the farmer.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "farmName",
+        "farmLocation"
+      ]
+    },
+    "ProductListing": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProductListing",
+      "type": "object",
+      "description": "Represents a product listed by a farmer for sale.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ProductListing entity."
+        },
+        "farmerId": {
+          "type": "string",
+          "description": "Reference to FarmerProfile. (Relationship: FarmerProfile 1:N ProductListing)"
+        },
+        "productName": {
+          "type": "string",
+          "description": "Name of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the product."
+        },
+        "images": {
+          "type": "array",
+          "description": "URLs of product images.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "iotData": {
+          "type": "string",
+          "description": "Simulated IoT sensor data (temperature, humidity, etc.)."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the product."
+        },
+        "listingDate": {
+          "type": "string",
+          "description": "Date when the product was listed.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "farmerId",
+        "productName",
+        "description",
+        "price",
+        "listingDate"
+      ]
+    },
+    "Buyer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Buyer",
+      "type": "object",
+      "description": "Represents a buyer on the AgriClear platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Buyer entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 Buyer)"
+        },
+        "billingAddress": {
+          "type": "string",
+          "description": "Billing address of the buyer."
+        },
+        "shippingAddress": {
+          "type": "string",
+          "description": "Shipping address of the buyer."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "billingAddress",
+        "shippingAddress"
+      ]
+    },
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents an order placed by a buyer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Order entity."
+        },
+        "buyerId": {
+          "type": "string",
+          "description": "Reference to Buyer. (Relationship: Buyer 1:N Order)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to ProductListing. (Relationship: ProductListing 1:N Order)"
+        },
+        "orderDate": {
+          "type": "string",
+          "description": "Date the order was placed.",
+          "format": "date-time"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Quantity of the product ordered."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the order (e.g., pending, shipped, delivered)."
+        }
+      },
+      "required": [
+        "id",
+        "buyerId",
+        "productId",
+        "orderDate",
+        "quantity",
+        "status"
+      ]
+    },
+    "LogisticsProvider": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LogisticsProvider",
+      "type": "object",
+      "description": "Represents a logistics provider on the AgriClear platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the LogisticsProvider entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 LogisticsProvider)"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Name of the logistics company."
+        },
+        "contactPerson": {
+          "type": "string",
+          "description": "Name of the contact person at the logistics company."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "companyName",
+        "contactPerson"
+      ]
+    },
+    "Shipment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Shipment",
+      "type": "object",
+      "description": "Represents a shipment handled by a logistics provider.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Shipment entity."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Reference to Order. (Relationship: Order 1:1 Shipment)"
+        },
+        "logisticsProviderId": {
+          "type": "string",
+          "description": "Reference to LogisticsProvider. (Relationship: LogisticsProvider 1:N Shipment)"
+        },
+        "trackingNumber": {
+          "type": "string",
+          "description": "Tracking number for the shipment."
+        },
+        "currentLocation": {
+          "type": "string",
+          "description": "Current geographic location of the shipment."
+        },
+        "estimatedDeliveryDate": {
+          "type": "string",
+          "description": "Estimated delivery date of the shipment.",
+          "format": "date-time"
+        },
+        "shipmentStatusUpdates": {
+          "type": "array",
+          "description": "List of status updates for the shipment.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "orderId",
+        "logisticsProviderId",
+        "trackingNumber",
+        "currentLocation",
+        "estimatedDeliveryDate"
+      ]
+    },
+    "Admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Admin",
+      "type": "object",
+      "description": "Represents an administrator on the AgriClear platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Admin entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:1 Admin)"
+        }
+      },
+      "required": [
+        "id",
+        "userId"
+      ]
+    },
+    "EscrowTransaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EscrowTransaction",
+      "type": "object",
+      "description": "Represents a payment held in escrow via a smart contract.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the EscrowTransaction entity."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Reference to Order. (Relationship: Order 1:1 EscrowTransaction)"
+        },
+        "smartContractAddress": {
+          "type": "string",
+          "description": "Address of the smart contract managing the escrow."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount held in escrow."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the escrow transaction (e.g., pending, released)."
+        },
+        "releaseConditions": {
+          "type": "string",
+          "description": "Conditions that must be met for the funds to be released."
+        }
+      },
+      "required": [
+        "id",
+        "orderId",
+        "smartContractAddress",
+        "amount",
+        "status",
+        "releaseConditions"
+      ]
+    },
+    "FraudAlert": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "FraudAlert",
+      "type": "object",
+      "description": "Represents a fraud alert generated by the AI fraud detection module.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the FraudAlert entity."
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "Reference to EscrowTransaction. (Relationship: EscrowTransaction 1:1 FraudAlert)"
+        },
+        "alertDate": {
+          "type": "string",
+          "description": "Date the alert was generated.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the suspicious activity."
+        },
+        "severity": {
+          "type": "string",
+          "description": "Severity of the alert (e.g., low, medium, high)."
+        }
+      },
+      "required": [
+        "id",
+        "transactionId",
+        "alertDate",
+        "description",
+        "severity"
+      ]
+    },
+    "SustainabilityReward": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SustainabilityReward",
+      "type": "object",
+      "description": "Represents a reward given to a farmer for sustainable practices.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the SustainabilityReward entity."
+        },
+        "farmerId": {
+          "type": "string",
+          "description": "Reference to FarmerProfile. (Relationship: FarmerProfile 1:N SustainabilityReward)"
+        },
+        "rewardDate": {
+          "type": "string",
+          "description": "Date the reward was issued.",
+          "format": "date-time"
+        },
+        "tokenAmount": {
+          "type": "number",
+          "description": "Amount of tokens awarded."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason for the reward."
+        }
+      },
+      "required": [
+        "id",
+        "farmerId",
+        "rewardDate",
+        "tokenAmount",
+        "reason"
+      ]
     }
   },
   "auth": {
-    "providers": ["email"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": {
-        "$ref": "#/entities/UserProfile"
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user information. Each document is keyed by the user's unique ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
       },
-      "description": "Stores user profile information."
-    }
+      {
+        "path": "/users/{userId}/farmerProfile",
+        "definition": {
+          "entityName": "FarmerProfile",
+          "schema": {
+            "$ref": "#/backend/entities/FarmerProfile"
+          },
+          "description": "Stores farmer profile information, linked to a specific user. Represents a 1:1 relationship between User and FarmerProfile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user who owns this profile."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/productListings/{productListingId}",
+        "definition": {
+          "entityName": "ProductListing",
+          "schema": {
+            "$ref": "#/backend/entities/ProductListing"
+          },
+          "description": "Stores product listings from farmers. Includes denormalized 'farmerId' for authorization independence.",
+          "params": [
+            {
+              "name": "productListingId",
+              "description": "The unique identifier for the product listing."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/buyer",
+        "definition": {
+          "entityName": "Buyer",
+          "schema": {
+            "$ref": "#/backend/entities/Buyer"
+          },
+          "description": "Stores buyer information, linked to a specific user. Represents a 1:1 relationship between User and Buyer.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user who is a buyer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Stores order information. Includes denormalized 'buyerId' and 'productId' for authorization independence.",
+          "params": [
+            {
+              "name": "orderId",
+              "description": "The unique identifier for the order."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/logisticsProvider",
+        "definition": {
+          "entityName": "LogisticsProvider",
+          "schema": {
+            "$ref": "#/backend/entities/LogisticsProvider"
+          },
+          "description": "Stores logistics provider information, linked to a specific user. Represents a 1:1 relationship between User and LogisticsProvider.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user who is a logistics provider."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/shipments/{shipmentId}",
+        "definition": {
+          "entityName": "Shipment",
+          "schema": {
+            "$ref": "#/backend/entities/Shipment"
+          },
+          "description": "Stores shipment information. Related to an order and a logistics provider.",
+          "params": [
+            {
+              "name": "shipmentId",
+              "description": "The unique identifier for the shipment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/admin",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/Admin"
+          },
+          "description": "Stores admin information, linked to a specific user. Represents a 1:1 relationship between User and Admin.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user who is an administrator."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/escrowTransactions/{escrowTransactionId}",
+        "definition": {
+          "entityName": "EscrowTransaction",
+          "schema": {
+            "$ref": "#/backend/entities/EscrowTransaction"
+          },
+          "description": "Stores escrow transaction details.",
+          "params": [
+            {
+              "name": "escrowTransactionId",
+              "description": "The unique identifier for the escrow transaction."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/fraudAlerts/{fraudAlertId}",
+        "definition": {
+          "entityName": "FraudAlert",
+          "schema": {
+            "$ref": "#/backend/entities/FraudAlert"
+          },
+          "description": "Stores fraud alert information.",
+          "params": [
+            {
+              "name": "fraudAlertId",
+              "description": "The unique identifier for the fraud alert."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sustainabilityRewards/{sustainabilityRewardId}",
+        "definition": {
+          "entityName": "SustainabilityReward",
+          "schema": {
+            "$ref": "#/backend/entities/SustainabilityReward"
+          },
+          "description": "Stores sustainability reward information.",
+          "params": [
+            {
+              "name": "sustainabilityRewardId",
+              "description": "The unique identifier for the sustainability reward."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/Admin"
+          },
+          "description": "Collection used to store admin roles. Existence of a document grants admin access. (Existence over Content).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability for the AgriClear platform. User data and related profiles (FarmerProfile, Buyer, LogisticsProvider, Admin) are stored under the `/users/{userId}` path, ensuring clear ownership. Product listings are stored in a top-level collection, `/productListings`, with the `farmerId` denormalized to maintain authorization independence. Orders are in `/orders` also, similarly, with denormalized `buyerId` and `productId`.  \n\nTo support secure `list` operations (QAPs), data with different access requirements are segregated into distinct collections. User-specific data (FarmerProfile, Buyer, LogisticsProvider, Admin) are stored under `/users/{userId}`, which provides path-based ownership and simplifies security rules. Product listings are in a separate `/productListings` collection, allowing for public read access while restricting write access to authorized farmers. The denormalization of `farmerId` within `ProductListing` allows for efficient querying and rule enforcement without requiring `get()` calls.\n\nThe structure facilitates Authorization Independence by denormalizing authorization-related data. For instance, the `ProductListing` includes the `farmerId`, which allows rules to validate write access based on the requesting user's ID without needing to fetch the FarmerProfile. Similarly, Orders include `buyerId` and `productId`. This denormalization is critical for atomic operations and simplifies security rule debugging.\n\nFor collaborative data, such as potential roles or admin access, a dedicated collection `/roles_admin/{uid}` is used. The existence of a document in this collection grants admin privileges, aligning with the Existence over Content approach."
   }
 }
