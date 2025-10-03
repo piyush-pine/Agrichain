@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'AgriChain | Blockchain-Powered Agricultural Supply Chain',
-  description: 'AgriChain leverages blockchain technology to create a fair, transparent, and efficient agricultural supply chain ecosystem.',
+  title: 'AgriClear | Blockchain-Powered Agricultural Supply Chain',
+  description: 'AgriClear leverages blockchain technology to create a fair, transparent, and efficient agricultural supply chain ecosystem.',
 };
 
 export default function RootLayout({
@@ -24,7 +25,9 @@ export default function RootLayout({
         <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
       </head>
       <body className="font-body antialiased text-gray-800">
-        {children}
+        <FirebaseClientProvider>
+          {children}
+        </FirebaseClientProvider>
         <Toaster />
       </body>
     </html>

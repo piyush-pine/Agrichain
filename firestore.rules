@@ -1,0 +1,28 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // PROTECTED
+    // Public user profile information
+    match /users/{uid} {
+      // Unauthenticated users can create their own user document
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && request.resource.data.role is string
+        && request.resource.data.role in ['admin', 'buyer', 'farmer', 'logistics']
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.createdAt is timestamp;
+
+      // Authenticated users can read any user profile
+      allow get: if request.auth != null;
+
+      // Users can only update their own profile
+      allow update: if request.auth != null && request.auth.uid == uid;
+      
+      // Users cannot delete their profile
+      allow delete: if false;
+    }
+  }
+}
