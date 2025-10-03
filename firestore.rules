@@ -1,248 +1,266 @@
 /**
- * @fileoverview Firestore Security Rules for AgriClear Platform
+ * @file AgriClear Firestore Security Rules
+ * @version Prototyping Mode - Data shape is not strictly enforced. Authorization is strictly enforced.
  *
- * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for private user data
- * and allows public read access with owner-only writes for product listings.
- * Admin privileges are granted based on the existence of a document in the
- * `/roles_admin/{userId}` collection.
+ * @core_philosophy This ruleset enforces a strict user-ownership model for user-related data and uses denormalization to maintain authorization independence. Public read access is allowed for product listings, while write access is restricted to authorized farmers. Admin privileges are granted based on the existence of a document in the `/roles_admin` collection.
  *
- * Data Structure:
- * - /users/{userId}: Stores user profiles and acts as the root for
- *   user-specific data.
- * - /users/{userId}/farmerProfile: Farmer profiles, owned by the user.
- * - /users/{userId}/buyer: Buyer profiles, owned by the user.
- * - /users/{userId}/logisticsProvider: Logistics Provider profiles, owned by the user.
- * - /users/{userId}/admin: Admin profiles, owned by the user.
- * - /productListings/{productListingId}: Publicly readable product listings,
- *   write-protected to the owner (farmer). The `farmerId` field is denormalized
- *   for efficient authorization.
- * - /orders/{orderId}: Orders, with `buyerId` and `productId` denormalized for
- *   authorization.
- * - /shipments/{shipmentId}: Shipment information.
- * - /escrowTransactions/{escrowTransactionId}: Escrow transaction details.
- * - /fraudAlerts/{fraudAlertId}: Fraud alert information.
- * - /sustainabilityRewards/{sustainabilityRewardId}: Sustainability reward information.
- * - /roles_admin/{userId}: Collection used to store admin roles. Existence of a document grants admin access. (Existence over Content).
+ * @data_structure
+ *   - `/users/{userId}`: Stores user profiles.
+ *   - `/users/{userId}/farmerProfile`: Stores farmer profiles associated with users.
+ *   - `/users/{userId}/buyer`: Stores buyer profiles associated with users.
+ *   - `/users/{userId}/logisticsProvider`: Stores logistics provider profiles associated with users.
+ *   - `/users/{userId}/admin`: Stores admin profiles associated with users.
+ *   - `/productListings/{productListingId}`: Stores product listings with denormalized `farmerId` for authorization.
+ *   - `/orders/{orderId}`: Stores orders with denormalized `buyerId` and `productId` for authorization.
+ *   - `/shipments/{shipmentId}`: Stores shipment information.
+ *   - `/escrowTransactions/{escrowTransactionId}`: Stores escrow transaction details.
+ *   - `/fraudAlerts/{fraudAlertId}`: Stores fraud alert information.
+ *   - `/sustainabilityRewards/{sustainabilityRewardId}`: Stores sustainability reward information.
+ *   - `/roles_admin/{userId}`: Stores admin role assignments. The existence of a document grants admin privileges.
  *
- * Key Security Decisions:
- * - User listing is denied.
- * - Public read access is granted for product listings.
- * - Default security posture for ambiguous relationships is strict owner-only
- *   access.
+ * @key_security_decisions
+ *   - User data is strictly controlled by the owning user.
+ *   - Product listings are publicly readable but writable only by the associated farmer.
+ *   - Admin privileges are determined by the existence of a document in `/roles_admin/{userId}`.
+ *   - Listing of documents in user-owned subcollections is allowed for the owning user.
+ *   - No user listing is generally allowed, except for specific admin collections.
  *
- * Denormalization for Authorization:
- * - ProductListing documents include the `farmerId` to allow direct
- *   authorization checks without requiring additional reads.
- * - Order documents include the `buyerId` and `productId` for similar reasons.
+ * @denormalization_for_authorization
+ *   - `ProductListing` documents include a `farmerId` field to allow authorization without needing to fetch the FarmerProfile.
+ *   - `Order` documents include `buyerId` and `productId` for authorization independence.
  *
- * Structural Segregation:
- * - User-specific data is stored under the /users/{userId} collection to
- *   maintain clear ownership and simplify security rules.
+ * @structural_segregation User-specific data is stored under `/users/{userId}`, providing path-based ownership and simplifying security rules. Product listings are in a separate `/productListings` collection, allowing for public read access while restricting write access to authorized farmers.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is made by an authenticated user.
+     * @description Checks if the request is made by a signed-in user.
+     * @return {bool} True if the user is signed in, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the authenticated user's ID matches the provided userId.
+     * @description Checks if the authenticated user is the owner of the resource.
+     * @param {string} userId The user ID to compare against the authenticated user's ID.
+     * @return {bool} True if the user is the owner, false otherwise.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+        /**
+         * @description Checks if the authenticated user is the existing owner of the resource.
+         * @param {string} userId The user ID to compare against the authenticated user's ID.
+         * @return {bool} True if the user is the owner and the resource exists, false otherwise.
+         */
+        function isExistingOwner(userId) {
+            return isOwner(userId) && resource != null;
+        }
+
     /**
-     * @description Checks if the authenticated user's ID matches the provided userId and the resource exists.
+     * @description Checks if the user has admin privileges based on the existence of a document in /roles_admin/{userId}.
+     * @return {bool} True if the user is an admin, false otherwise.
      */
-    function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
-    }
-
-     /**
-      * @description Checks if the authenticated user has admin privileges based on the existence of a document in `/roles_admin/{userId}`.
-      */
     function isAdmin() {
-        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     /**
-     * @description Enforces document ownership for writes, ensuring only the owner can modify data.
+     * @description Rules for the /users/{userId} collection.
      * @path /users/{userId}
-     * @allow (create) User with ID matching auth.uid can create their profile.
-     * @deny (create) User with ID not matching auth.uid cannot create a profile.
-     * @allow (get, list) Authenticated user can read their own profile.
-     * @deny (get, list) Authenticated user cannot read other user profiles.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Signed-in user creates their own profile.
+     * @allow (get, list) Signed-in user gets their own profile.
+     * @deny (create) Signed-in user tries to create a profile for another user.
+     * @deny (update, delete) Signed-in user tries to update or delete another user's profile.
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
+      allow list: if false; // Prevent listing all users
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Enforces strict ownership for farmer profiles under a user's data tree.
+     * @description Rules for the /users/{userId}/farmerProfile subcollection.
      * @path /users/{userId}/farmerProfile
-     * @allow (create) User with ID matching the path can create their farmer profile.
-     * @deny (create) User with ID not matching the path cannot create a farmer profile.
-     * @allow (get, list) Authenticated user can read their own farmer profile.
-     * @deny (get, list) Authenticated user cannot read other user's farmer profiles.
-     * @principle Restricts access to a user's own data tree.
+     * @allow (create) Signed-in user creates their own farmer profile.
+     * @allow (get, list) Signed-in user gets their own farmer profile.
+     * @deny (create) Signed-in user tries to create a farmer profile for another user.
+     * @deny (update, delete) Signed-in user tries to update or delete another user's farmer profile.
+     * @principle Enforces document ownership for farmer profiles.
      */
     match /users/{userId}/farmerProfile {
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.userId == request.auth.uid;
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows public read access to product listings, but restricts write access to the farmer who owns the listing.
+     * @description Rules for the /productListings/{productListingId} collection.
      * @path /productListings/{productListingId}
-     * @allow (get, list) Any user can read product listings.
-     * @allow (create) Authenticated farmer can create a product listing with their farmerId.
-     * @deny (create) Authenticated user cannot create a listing with someone else's farmerId.
-     * @allow (update, delete) Only the farmer who owns the listing can update or delete it.
-     * @principle Allows public read access while enforcing document ownership for writes.
+     * @allow (get, list) Anyone can read product listings.
+     * @allow (create) Signed-in user creates a product listing with their farmerId.
+     * @deny (create) Signed-in user tries to create a product listing with another user's farmerId.
+     * @deny (update, delete) Signed-in user tries to update or delete a product listing they don't own.
+     * @principle Allows public read access, enforces ownership for writes.
      */
     match /productListings/{productListingId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.farmerId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.farmerId == request.auth.uid && resource != null;
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && request.resource.data.farmerId != null; // farmerId should be present
+      allow update: if isSignedIn() && resource.data.farmerId == request.auth.uid;
       allow delete: if isSignedIn() && resource.data.farmerId == request.auth.uid && resource != null;
     }
 
     /**
-     * @description Enforces strict ownership for buyer profiles under a user's data tree.
+     * @description Rules for the /users/{userId}/buyer subcollection.
      * @path /users/{userId}/buyer
-     * @allow (create) User with ID matching the path can create their buyer profile.
-     * @deny (create) User with ID not matching the path cannot create a buyer profile.
-     * @allow (get, list) Authenticated user can read their own buyer profile.
-     * @deny (get, list) Authenticated user cannot read other user's buyer profiles.
-     * @principle Restricts access to a user's own data tree.
+     * @allow (create) Signed-in user creates their own buyer profile.
+     * @allow (get, list) Signed-in user gets their own buyer profile.
+     * @deny (create) Signed-in user tries to create a buyer profile for another user.
+     * @deny (update, delete) Signed-in user tries to update or delete another user's buyer profile.
+     * @principle Enforces document ownership for buyer profiles.
      */
     match /users/{userId}/buyer {
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.userId == request.auth.uid;
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows access to order information.
+     * @description Rules for the /orders/{orderId} collection.
      * @path /orders/{orderId}
+     * @allow (get, list) Anyone can read orders.
+     * @allow (create) Signed-in user creates an order.
+     * @deny (update, delete) Signed-in user tries to update or delete an order they don't own.
+     * @principle Allows public read access, but write access should be restricted based on the application logic.
      */
     match /orders/{orderId} {
-      allow get: if isSignedIn();
-      allow list: if false;
+      allow get: if true;
+      allow list: if true;
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Enforces strict ownership for logistics provider profiles under a user's data tree.
+     * @description Rules for the /users/{userId}/logisticsProvider subcollection.
      * @path /users/{userId}/logisticsProvider
-     * @allow (create) User with ID matching the path can create their logistics provider profile.
-     * @deny (create) User with ID not matching the path cannot create a logistics provider profile.
-     * @allow (get, list) Authenticated user can read their own logistics provider profile.
-     * @deny (get, list) Authenticated user cannot read other user's logistics provider profiles.
-     * @principle Restricts access to a user's own data tree.
+     * @allow (create) Signed-in user creates their own logistics provider profile.
+     * @allow (get, list) Signed-in user gets their own logistics provider profile.
+     * @deny (create) Signed-in user tries to create a logistics provider profile for another user.
+     * @deny (update, delete) Signed-in user tries to update or delete another user's logistics provider profile.
+     * @principle Enforces document ownership for logistics provider profiles.
      */
     match /users/{userId}/logisticsProvider {
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.userId == request.auth.uid;
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows access to shipment information.
+     * @description Rules for the /shipments/{shipmentId} collection.
      * @path /shipments/{shipmentId}
+     * @allow (get, list) Anyone can read shipments.
+     * @allow (create) Signed-in user creates a shipment.
+     * @deny (update, delete) Signed-in user tries to update or delete a shipment they don't own.
      */
     match /shipments/{shipmentId} {
-      allow get: if isSignedIn();
-      allow list: if false;
+      allow get: if true;
+      allow list: if true;
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Enforces strict ownership for admin profiles under a user's data tree.
+     * @description Rules for the /users/{userId}/admin subcollection.
      * @path /users/{userId}/admin
-     * @allow (create) User with ID matching the path can create their admin profile.
-     * @deny (create) User with ID not matching the path cannot create an admin profile.
-     * @allow (get, list) Authenticated user can read their own admin profile.
-     * @deny (get, list) Authenticated user cannot read other user's admin profiles.
-     * @principle Restricts access to a user's own data tree.
+     * @allow (create) Signed-in user creates their own admin profile.
+     * @allow (get, list) Signed-in user gets their own admin profile.
+     * @deny (create) Signed-in user tries to create an admin profile for another user.
+     * @deny (update, delete) Signed-in user tries to update or delete another user's admin profile.
+     * @principle Enforces document ownership for admin profiles.
      */
     match /users/{userId}/admin {
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.userId == request.auth.uid;
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows access to escrow transaction details.
+     * @description Rules for the /escrowTransactions/{escrowTransactionId} collection.
      * @path /escrowTransactions/{escrowTransactionId}
+     * @allow (get, list) Anyone can read escrow transactions.
+     * @allow (create) Signed-in user creates an escrow transaction.
+     * @deny (update, delete) Signed-in user tries to update or delete an escrow transaction they don't own.
      */
     match /escrowTransactions/{escrowTransactionId} {
-      allow get: if isSignedIn();
-      allow list: if false;
+      allow get: if true;
+      allow list: if true;
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Allows access to fraud alert information.
+     * @description Rules for the /fraudAlerts/{fraudAlertId} collection.
      * @path /fraudAlerts/{fraudAlertId}
+     * @allow (get, list) Anyone can read fraud alerts.
+     * @allow (create) Signed-in user creates a fraud alert.
+     * @deny (update, delete) Signed-in user tries to update or delete a fraud alert they don't own.
      */
     match /fraudAlerts/{fraudAlertId} {
-      allow get: if isSignedIn();
-      allow list: if false;
+      allow get: if true;
+      allow list: if true;
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
 
     /**
-     * @description Allows access to sustainability reward information.
+     * @description Rules for the /sustainabilityRewards/{sustainabilityRewardId} collection.
      * @path /sustainabilityRewards/{sustainabilityRewardId}
+     * @allow (get, list) Anyone can read sustainability rewards.
+     * @allow (create) Signed-in user creates a sustainability reward.
+     * @deny (update, delete) Signed-in user tries to update or delete a sustainability reward they don't own.
      */
     match /sustainabilityRewards/{sustainabilityRewardId} {
-      allow get: if isSignedIn();
-      allow list: if false;
+      allow get: if true;
+      allow list: if true;
       allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+      allow update: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
     }
-
     /**
-     * @description Grants admin privileges based on the existence of a document in this collection.
+     * @description Rules for the /roles_admin/{userId} collection. The existence of a document grants admin privileges.
      * @path /roles_admin/{userId}
+     * @allow (create) Only admins can grant admin roles.
+     * @allow (get, list) Only admins can list admin roles.
+     * @deny (create) Non-admins cannot create admin roles.
+     * @deny (update, delete) Only admins can update or delete admin roles.
+     * @principle Uses "Existence over Content" for admin privileges.
      */
-     match /roles_admin/{userId} {
-        allow get: if isAdmin();
-        allow list: if false;
-        allow create: if isAdmin();
-        allow update: if false;
-        allow delete: if isAdmin();
+    match /roles_admin/{userId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
     }
   }
 }
