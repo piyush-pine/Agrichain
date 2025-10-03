@@ -34,6 +34,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getAuth, signOut } from 'firebase/auth';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { CartSheet } from './cart/CartSheet';
 
 const navItems = {
   admin: [
@@ -192,6 +193,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <Bell className="h-5 w-5" />
                     <span className="sr-only">Notifications</span>
                 </Button>
+
+                {role === 'buyer' && <CartSheet />}
+
                 <UserDropdown />
             </div>
           </header>
