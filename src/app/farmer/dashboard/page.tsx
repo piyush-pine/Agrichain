@@ -9,21 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Activity, Award, DollarSign, Leaf, PlusCircle, ArrowUpRight } from "lucide-react";
 import { useUser } from "@/firebase/auth/use-user";
 import Link from "next/link";
-
-const stats = [
-    { title: "Total Products", value: "12", icon: Leaf, change: "+5 this month", changeType: "increase" },
-    { title: "Open Orders", value: "5", icon: Activity, change: "+2 today", changeType: "increase" },
-    { title: "Total Revenue", value: "$1,250", icon: DollarSign, change: "+20.1%", changeType: "increase" },
-    { title: "Sustainability Tokens", value: "85 AGR", icon: Award, change: "+15 earned", changeType: "increase" },
-];
-
-const recentOrders = [
-    { id: "ORD001", product: "Organic Tomatoes", date: "2023-10-26", status: "Shipped", amount: "$50.00" },
-    { id: "ORD002", product: "Basmati Rice", date: "2023-10-25", status: "Processing", amount: "$120.00" },
-    { id: "ORD003", product: "Fresh Mangoes", date: "2023-10-25", status: "Delivered", amount: "$75.00" },
-    { id: "ORD004", product: "Organic Spinach", date: "2023-10-24", status: "Delivered", amount: "$35.00" },
-    { id: "ORD005", product: "Himalayan Honey", date: "2023-10-23", status: "Shipped", amount: "$90.00" },
-];
+import { useCollection } from "@/firebase";
+import { collection, query, where } from "firebase/firestore";
+import { useFirestore } from "@/firebase/provider";
+import React from "react";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
   Shipped: "default",
@@ -33,6 +22,33 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
 
 export default function FarmerDashboardPage() {
   const { user } = useUser();
+  const firestore = useFirestore();
+
+  const productsQuery = React.useMemo(() => {
+      if (!user) return null;
+      return query(collection(firestore, "products"), where("farmer_id", "==", user.uid));
+  }, [user, firestore]);
+
+  const ordersQuery = React.useMemo(() => {
+      if (!user) return null;
+      return query(collection(firestore, "orders"), where("farmer_id", "==", user.uid));
+  }, [user, firestore]);
+  
+  const { data: products, isLoading: productsLoading } = useCollection(productsQuery);
+  const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery);
+
+  const totalRevenue = orders?.reduce((acc, order) => acc + order.amount, 0) || 0;
+  const openOrdersCount = orders?.filter(o => o.status !== 'Delivered' && o.status !== 'Shipped').length || 0;
+
+  const stats = [
+      { title: "Total Products", value: products?.length ?? 0, icon: Leaf, change: "", changeType: "increase" },
+      { title: "Open Orders", value: openOrdersCount, icon: Activity, change: "", changeType: "increase" },
+      { title: "Total Revenue", value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign, change: "", changeType: "increase" },
+      { title: "Sustainability Tokens", value: "85 AGR", icon: Award, change: "+15 earned", changeType: "increase" },
+  ];
+
+  const recentOrders = orders?.slice(0, 5) || [];
+
 
   return (
     <DashboardLayout>
@@ -42,7 +58,7 @@ export default function FarmerDashboardPage() {
                 <p className="text-muted-foreground">Here's a snapshot of your farm's activity.</p>
             </div>
             <Button asChild>
-                <Link href="/farmer/products">
+                <Link href="/farmer/products/new">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add New Product
                 </Link>
@@ -58,10 +74,12 @@ export default function FarmerDashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stat.value}</div>
-                        <p className="text-xs text-muted-foreground flex items-center">
-                            <ArrowUpRight className="h-3 w-3 mr-1 text-green-500"/>
-                            <span className="text-green-500 font-semibold">{stat.change}</span>
-                        </p>
+                        {stat.change && (
+                            <p className="text-xs text-muted-foreground flex items-center">
+                                <ArrowUpRight className="h-3 w-3 mr-1 text-green-500"/>
+                                <span className="text-green-500 font-semibold">{stat.change}</span>
+                            </p>
+                        )}
                     </CardContent>
                 </Card>
             ))}
@@ -77,22 +95,26 @@ export default function FarmerDashboardPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Order ID</TableHead>
-                            <TableHead>Product</TableHead>
+                            <TableHead>Product Name</TableHead>
                             <TableHead>Date</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {recentOrders.map((order) => (
+                        {ordersLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center">Loading orders...</TableCell>
+                            </TableRow>
+                        ) : recentOrders.map((order) => (
                             <TableRow key={order.id}>
-                                <TableCell className="font-medium">{order.id}</TableCell>
-                                <TableCell>{order.product}</TableCell>
-                                <TableCell>{order.date}</TableCell>
+                                <TableCell className="font-medium">{order.id.slice(0,6)}...</TableCell>
+                                <TableCell>{order.product_name || 'N/A'}</TableCell>
+                                <TableCell>{order.created_at ? new Date(order.created_at.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
                                 <TableCell>
                                     <Badge variant={statusVariant[order.status] || "default"}>{order.status}</Badge>
                                 </TableCell>
-                                <TableCell className="text-right">{order.amount}</TableCell>
+                                <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

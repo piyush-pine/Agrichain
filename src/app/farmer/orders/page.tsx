@@ -1,28 +1,41 @@
 
 'use client';
 
+import React from 'react';
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-const orders = [
-    { id: "ORD001", product: "Organic Tomatoes", date: "2023-10-26", status: "Shipped", amount: "$50.00", buyer: "Retail Co." },
-    { id: "ORD002", product: "Basmati Rice", date: "2023-10-25", status: "Processing", amount: "$120.00", buyer: "FoodStuffs Inc." },
-    { id: "ORD003", product: "Fresh Mangoes", date: "2023-10-25", status: "Delivered", amount: "$75.00", buyer: "Juice Bar" },
-    { id: "ORD004", product: "Himalayan Honey", date: "2023-10-23", status: "Shipped", amount: "$90.00", buyer: "Healthy Eats" },
-    { id: "ORD005", product: "Organic Spinach", date: "2023-10-24", status: "Delivered", amount: "$35.00", buyer: "Retail Co." },
-
-];
+import { useUser } from '@/firebase/auth/use-user';
+import { useFirestore } from '@/firebase/provider';
+import { useCollection } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
   Shipped: "default",
   Processing: "secondary",
   Delivered: "success",
+  Pending: "outline",
+  Confirmed: "default",
+  Paid: "success",
 };
 
 export default function FarmerOrdersPage() {
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const ordersQuery = React.useMemo(() => {
+        if (!user) return null;
+        return query(collection(firestore, "orders"), where("farmer_id", "==", user.uid));
+    }, [user, firestore]);
+
+    const { data: orders, isLoading } = useCollection(ordersQuery);
+
+    if (isLoading) {
+        return <DashboardLayout><div>Loading...</div></DashboardLayout>
+    }
+
   return (
     <DashboardLayout>
       <div className="flex items-center justify-between mb-6">
@@ -42,16 +55,16 @@ export default function FarmerOrdersPage() {
                     <TabsTrigger value="delivered">Delivered</TabsTrigger>
                 </TabsList>
                 <TabsContent value="all">
-                    <OrderTable orders={orders} />
+                    <OrderTable orders={orders || []} />
                 </TabsContent>
                 <TabsContent value="processing">
-                    <OrderTable orders={orders.filter(o => o.status === 'Processing')} />
+                    <OrderTable orders={orders?.filter(o => o.status === 'Processing') || []} />
                 </TabsContent>
                 <TabsContent value="shipped">
-                    <OrderTable orders={orders.filter(o => o.status === 'Shipped')} />
+                    <OrderTable orders={orders?.filter(o => o.status === 'Shipped') || []} />
                 </TabsContent>
                 <TabsContent value="delivered">
-                    <OrderTable orders={orders.filter(o => o.status === 'Delivered')} />
+                    <OrderTable orders={orders?.filter(o => o.status === 'Delivered') || []} />
                 </TabsContent>
             </Tabs>
         </CardContent>
@@ -60,14 +73,18 @@ export default function FarmerOrdersPage() {
   );
 }
 
-function OrderTable({ orders }: { orders: typeof orders }) {
+function OrderTable({ orders }: { orders: any[] }) {
+    if (!orders.length) {
+        return <div className="text-center text-muted-foreground py-8">No orders found.</div>;
+    }
+
     return (
         <Table>
             <TableHeader>
                 <TableRow>
                     <TableHead>Order ID</TableHead>
-                    <TableHead>Buyer</TableHead>
-                    <TableHead>Product</TableHead>
+                    <TableHead>Buyer ID</TableHead>
+                    <TableHead>Product ID</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
@@ -76,14 +93,14 @@ function OrderTable({ orders }: { orders: typeof orders }) {
             <TableBody>
                 {orders.map((order) => (
                     <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.id}</TableCell>
-                        <TableCell>{order.buyer}</TableCell>
-                        <TableCell>{order.product}</TableCell>
-                        <TableCell>{order.date}</TableCell>
+                        <TableCell className="font-medium">{order.id.slice(0,6)}...</TableCell>
+                        <TableCell>{order.buyer_id.slice(0,6)}...</TableCell>
+                        <TableCell>{order.product_id.slice(0,6)}...</TableCell>
+                        <TableCell>{order.created_at ? new Date(order.created_at.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
                         <TableCell>
                             <Badge variant={statusVariant[order.status] || "default"}>{order.status}</Badge>
                         </TableCell>
-                        <TableCell className="text-right">{order.amount}</TableCell>
+                        <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
                     </TableRow>
                 ))}
             </TableBody>

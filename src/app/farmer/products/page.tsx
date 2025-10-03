@@ -1,6 +1,7 @@
 
 'use client';
 
+import React from 'react';
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,13 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
-const products = [
-  { id: "PROD001", name: "Organic Tomatoes", price: "$2.50/kg", status: "Listed", date: "2023-10-20" },
-  { id: "PROD002", name: "Basmati Rice", price: "$5.00/kg", status: "Listed", date: "2023-10-18" },
-  { id: "PROD003", name: "Fresh Mangoes", price: "$8.00/kg", status: "Sold", date: "2023-10-15" },
-  { id: "PROD004", name: "Himalayan Honey", price: "$15.00/jar", status: "Listed", date: "2023-10-12" },
-];
+import Link from 'next/link';
+import { useUser } from '@/firebase/auth/use-user';
+import { useFirestore } from '@/firebase/provider';
+import { useCollection } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
   Listed: "success",
@@ -23,13 +22,25 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
 
 
 export default function FarmerProductsPage() {
+    const { user } = useUser();
+    const firestore = useFirestore();
+
+    const productsQuery = React.useMemo(() => {
+        if (!user) return null;
+        return query(collection(firestore, "products"), where("farmer_id", "==", user.uid));
+    }, [user, firestore]);
+    
+    const { data: products, isLoading } = useCollection(productsQuery);
+
   return (
     <DashboardLayout>
         <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-bold">My Products</h1>
-            <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add New Product
+            <Button asChild>
+                <Link href="/farmer/products/new">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add New Product
+                </Link>
             </Button>
         </div>
         <Card>
@@ -51,32 +62,42 @@ export default function FarmerProductsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {products.map((product) => (
-                            <TableRow key={product.id}>
-                                <TableCell className="font-medium">{product.name}</TableCell>
-                                <TableCell>{product.price}</TableCell>
-                                <TableCell>
-                                    <Badge variant={statusVariant[product.status] || "default"}>{product.status}</Badge>
-                                </TableCell>
-                                <TableCell>{product.date}</TableCell>
-                                <TableCell>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                                <span className="sr-only">Toggle menu</span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                            <DropdownMenuItem>Edit</DropdownMenuItem>
-                                            <DropdownMenuItem>View Analytics</DropdownMenuItem>
-                                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center">Loading products...</TableCell>
                             </TableRow>
-                        ))}
+                        ) : products && products.length > 0 ? (
+                            products.map((product) => (
+                                <TableRow key={product.id}>
+                                    <TableCell className="font-medium">{product.name}</TableCell>
+                                    <TableCell>${product.price.toFixed(2)}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={statusVariant[product.status] || "default"}>{product.status}</Badge>
+                                    </TableCell>
+                                    <TableCell>{product.created_at ? new Date(product.created_at.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                    <span className="sr-only">Toggle menu</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                <DropdownMenuItem>Edit</DropdownMenuItem>
+                                                <DropdownMenuItem>View Analytics</DropdownMenuItem>
+                                                <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center">No products found. <Link href="/farmer/products/new" className="text-primary underline">Add your first product</Link>.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
