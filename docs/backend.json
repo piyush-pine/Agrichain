@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -6,10 +7,6 @@
       "type": "object",
       "description": "Represents a user of the AgriClear platform.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user."
-        },
         "name": {
           "type": "string",
           "description": "User's full name."
@@ -31,24 +28,23 @@
           "type": "boolean",
           "description": "Indicates if the user's account is verified."
         },
-        "aadhaarVerified": {
+        "aadhaar_verified": {
           "type": "boolean",
           "description": "Indicates if the user's Aadhaar has been verified."
         },
-        "createdAt": {
+        "created_at": {
           "type": "string",
           "description": "Timestamp indicating when the user account was created.",
           "format": "date-time"
         }
       },
       "required": [
-        "id",
         "name",
         "email",
         "role",
         "verified",
-        "aadhaarVerified",
-        "createdAt"
+        "aadhaar_verified",
+        "created_at"
       ]
     },
     "Product": {
@@ -57,10 +53,6 @@
       "type": "object",
       "description": "Represents a product listed on the AgriClear platform.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the product."
-        },
         "name": {
           "type": "string",
           "description": "Name of the product."
@@ -77,39 +69,47 @@
           "type": "number",
           "description": "Price of the product."
         },
-        "farmerId": {
+        "farmer_id": {
           "type": "string",
-          "description": "Reference to the Farmer who listed the product. (Relationship: Farmer 1:N Product)"
+          "description": "Reference to the Farmer who listed the product."
         },
         "status": {
           "type": "string",
-          "description": "Status of the product (listed, sold, shipped)."
+          "enum": ["listed", "sold", "shipped"]
         },
-        "iotData": {
-          "type": "string",
-          "description": "JSON string that store iot data."
+        "iot_data": {
+          "type": "object",
+          "properties": {
+            "temperature": {"type": "number"},
+            "humidity": {"type": "number"},
+            "location": {
+              "type": "object",
+              "properties": {
+                "lat": {"type": "number"},
+                "lng": {"type": "number"}
+              }
+            },
+            "timestamp": {"type": "string", "format": "date-time"}
+          }
         },
-        "qualityCert": {
+        "quality_cert": {
           "type": "string",
           "description": "URL to the quality certification document."
         },
-        "createdAt": {
+        "created_at": {
           "type": "string",
           "description": "Timestamp indicating when the product was listed.",
           "format": "date-time"
         }
       },
       "required": [
-        "id",
         "name",
         "description",
         "category",
         "price",
-        "farmerId",
+        "farmer_id",
         "status",
-        "iotData",
-        "qualityCert",
-        "createdAt"
+        "created_at"
       ]
     },
     "Order": {
@@ -118,21 +118,17 @@
       "type": "object",
       "description": "Represents an order placed on the AgriClear platform.",
       "properties": {
-        "id": {
+        "product_id": {
           "type": "string",
-          "description": "Unique identifier for the order."
+          "description": "Reference to the Product being ordered."
         },
-        "productId": {
+        "buyer_id": {
           "type": "string",
-          "description": "Reference to the Product being ordered. (Relationship: Product 1:N Order)"
+          "description": "Reference to the Buyer who placed the order."
         },
-        "buyerId": {
+        "farmer_id": {
           "type": "string",
-          "description": "Reference to the Buyer who placed the order. (Relationship: Buyer 1:N Order)"
-        },
-        "farmerId": {
-          "type": "string",
-          "description": "Reference to the Farmer who owns the product in the order. (Relationship: Farmer 1:N Order)"
+          "description": "Reference to the Farmer who owns the product."
         },
         "amount": {
           "type": "number",
@@ -140,32 +136,29 @@
         },
         "status": {
           "type": "string",
-          "description": "Status of the order (pending, confirmed, shipped, delivered, paid)."
+          "enum": ["pending", "confirmed", "shipped", "delivered", "paid"]
         },
-        "escrowReleased": {
+        "escrow_released": {
           "type": "boolean",
           "description": "Indicates if the escrow payment has been released."
         },
-        "deliveryProof": {
+        "delivery_proof": {
           "type": "string",
           "description": "URL to the delivery proof document."
         },
-        "createdAt": {
+        "created_at": {
           "type": "string",
           "description": "Timestamp indicating when the order was placed.",
           "format": "date-time"
         }
       },
       "required": [
-        "id",
-        "productId",
-        "buyerId",
-        "farmerId",
+        "product_id",
+        "buyer_id",
+        "farmer_id",
         "amount",
         "status",
-        "escrowReleased",
-        "deliveryProof",
-        "createdAt"
+        "created_at"
       ]
     },
     "Shipment": {
@@ -174,54 +167,51 @@
       "type": "object",
       "description": "Represents a shipment of an order on the AgriClear platform.",
       "properties": {
-        "id": {
+        "order_id": {
           "type": "string",
-          "description": "Unique identifier for the shipment."
+          "description": "Reference to the Order being shipped."
         },
-        "orderId": {
+        "logistics_id": {
           "type": "string",
-          "description": "Reference to the Order being shipped. (Relationship: Order 1:N Shipment)"
-        },
-        "logisticsId": {
-          "type": "string",
-          "description": "Reference to the Logistics provider handling the shipment. (Relationship: Logistics 1:N Shipment)"
+          "description": "Reference to the Logistics provider handling the shipment."
         },
         "status": {
           "type": "string",
-          "description": "Status of the shipment (picked, in-transit, delivered)."
+          "enum": ["picked", "in-transit", "delivered"]
         },
-        "locationHistory": {
+        "location_history": {
           "type": "array",
-          "description": "History of the shipment's location.",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "lat": {"type": "number"},
+              "lng": {"type": "number"},
+              "timestamp": {"type": "string", "format": "date-time"}
+            }
           }
         },
-        "conditionLogs": {
+        "condition_logs": {
           "type": "array",
-          "description": "Logs of the shipment's condition (temperature, humidity).",
           "items": {
-            "type": "string"
+            "type": "object",
+            "properties": {
+              "temp": {"type": "number"},
+              "humidity": {"type": "number"},
+              "timestamp": {"type": "string", "format": "date-time"}
+            }
           }
         },
-        "deliveryConfirmed": {
-          "type": "boolean",
-          "description": "Indicates if the delivery has been confirmed."
+        "delivery_confirmed": {
+          "type": "boolean"
         },
-        "confirmedBy": {
-          "type": "string",
-          "description": "Method used to confirm delivery (QR/digital signature)."
+        "confirmed_by": {
+          "type": "string"
         }
       },
       "required": [
-        "id",
-        "orderId",
-        "logisticsId",
-        "status",
-        "locationHistory",
-        "conditionLogs",
-        "deliveryConfirmed",
-        "confirmedBy"
+        "order_id",
+        "logistics_id",
+        "status"
       ]
     },
     "Reward": {
@@ -230,188 +220,73 @@
       "type": "object",
       "description": "Represents a reward earned by a user on the AgriClear platform.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the reward."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who earned the reward. (Relationship: User 1:N Reward)"
+        "user_id": {
+          "type": "string"
         },
         "type": {
           "type": "string",
-          "description": "Type of reward (organic, zero-waste, timely-delivery)."
+          "enum": ["organic", "zero-waste", "timely-delivery"]
         },
         "points": {
-          "type": "number",
-          "description": "Number of points awarded for the reward."
+          "type": "number"
         },
         "verified": {
-          "type": "boolean",
-          "description": "Indicates if the reward has been verified."
+          "type": "boolean"
         },
-        "issuedAt": {
+        "issued_at": {
           "type": "string",
-          "description": "Timestamp indicating when the reward was issued.",
           "format": "date-time"
         }
       },
-      "required": [
-        "id",
-        "userId",
-        "type",
-        "points",
-        "verified",
-        "issuedAt"
-      ]
+      "required": ["user_id", "type", "points", "issued_at"]
     },
     "FraudAlert": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "FraudAlert",
       "type": "object",
-      "description": "Represents a fraud alert generated by the AI module on the AgriClear platform.",
+      "description": "Represents a fraud alert generated by the AI module.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the fraud alert."
-        },
-        "transactionId": {
-          "type": "string",
-          "description": "Reference to the Transaction that triggered the alert."
-        },
+        "transaction_id": {"type": "string"},
         "type": {
           "type": "string",
-          "description": "Type of fraud alert (price-spike, fake-quality, duplicate-listing)."
+          "enum": ["price-spike", "fake-quality", "duplicate-listing"]
         },
-        "confidence": {
-          "type": "number",
-          "description": "Confidence level of the fraud alert."
-        },
-        "resolved": {
-          "type": "boolean",
-          "description": "Indicates if the fraud alert has been resolved."
-        },
-        "detectedAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the fraud alert was detected.",
-          "format": "date-time"
-        }
+        "confidence": {"type": "number"},
+        "resolved": {"type": "boolean"},
+        "detected_at": {"type": "string", "format": "date-time"}
       },
-      "required": [
-        "id",
-        "transactionId",
-        "type",
-        "confidence",
-        "resolved",
-        "detectedAt"
-      ]
+      "required": ["transaction_id", "type", "confidence", "resolved", "detected_at"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "google"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles. Uses path-based ownership for user data.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/products/{productId}",
-        "definition": {
-          "entityName": "Product",
-          "schema": {
-            "$ref": "#/backend/entities/Product"
-          },
-          "description": "Stores product listings. Includes denormalized 'farmerId' for authorization independence.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "The unique identifier of the product."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/orders/{orderId}",
-        "definition": {
-          "entityName": "Order",
-          "schema": {
-            "$ref": "#/backend/entities/Order"
-          },
-          "description": "Stores order information. Includes denormalized 'buyerId' and 'farmerId' for authorization independence.",
-          "params": [
-            {
-              "name": "orderId",
-              "description": "The unique identifier of the order."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/shipments/{shipmentId}",
-        "definition": {
-          "entityName": "Shipment",
-          "schema": {
-            "$ref": "#/backend/entities/Shipment"
-          },
-          "description": "Stores shipment details. Includes denormalized 'logisticsId' for authorization independence.",
-          "params": [
-            {
-              "name": "shipmentId",
-              "description": "The unique identifier of the shipment."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/rewards/{rewardId}",
-        "definition": {
-          "entityName": "Reward",
-          "schema": {
-            "$ref": "#/backend/entities/Reward"
-          },
-          "description": "Stores reward information for users.",
-          "params": [
-            {
-              "name": "rewardId",
-              "description": "The unique identifier of the reward."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/fraud_alerts/{alertId}",
-        "definition": {
-          "entityName": "FraudAlert",
-          "schema": {
-            "$ref": "#/backend/entities/FraudAlert"
-          },
-          "description": "Stores fraud alerts detected by the AI module.",
-          "params": [
-            {
-              "name": "alertId",
-              "description": "The unique identifier of the fraud alert."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure prioritizes authorization independence and QAPs. User data is stored under `/users/{uid}`, adhering to path-based ownership. Products are stored in `/products/{productId}`, with the `farmerId` denormalized to enable secure listing without requiring `get()` calls to the user document. Orders are stored in `/orders/{orderId}`, and they denormalize both `buyerId` and `farmerId` to facilitate secure read access for both parties without relying on `get()` calls. Shipments are located in `/shipments/{shipmentId}` and store the `logisticsId` for access control. Rewards are stored in `/rewards/{rewardId}` and `fraud_alerts/{alertId}` are globally accessible. These structures, combined with security rules based on `request.auth.uid` and the denormalized fields, ensure that all list operations are secure, as rules can directly filter based on the user's role and the document's properties."
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Stores product listings."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Stores order information."
+    },
+    "/shipments/{shipmentId}": {
+      "schema": { "$ref": "#/entities/Shipment" },
+      "description": "Stores shipment details."
+    },
+    "/rewards/{rewardId}": {
+      "schema": { "$ref": "#/entities/Reward" },
+      "description": "Stores reward information for users."
+    },
+    "/fraud_alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/FraudAlert" },
+      "description": "Stores fraud alerts detected by the AI module."
+    }
   }
 }
+
+    
