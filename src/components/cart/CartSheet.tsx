@@ -13,6 +13,7 @@ import { collection, doc } from 'firebase/firestore';
 import Image from 'next/image';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
+import Link from 'next/link';
 
 export function CartSheet() {
     const { user } = useUser();
@@ -87,7 +88,9 @@ export function CartSheet() {
                                     <span>Subtotal</span>
                                     <span>${subtotal.toFixed(2)}</span>
                                 </div>
-                                <Button className="w-full">Proceed to Checkout</Button>
+                                <Button className="w-full" asChild>
+                                    <Link href="/buyer/checkout">Proceed to Checkout</Link>
+                                </Button>
                             </div>
                         </SheetFooter>
                     </>
