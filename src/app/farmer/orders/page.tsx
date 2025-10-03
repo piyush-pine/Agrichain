@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirestore } from '@/firebase/provider';
+import { useFirestore, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 
@@ -25,7 +25,7 @@ export default function FarmerOrdersPage() {
     const { user } = useUser();
     const firestore = useFirestore();
 
-    const ordersQuery = React.useMemo(() => {
+    const ordersQuery = useMemoFirebase(() => {
         if (!user) return null;
         return query(collection(firestore, "orders"), where("farmer_id", "==", user.uid));
     }, [user, firestore]);

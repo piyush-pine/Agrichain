@@ -11,7 +11,7 @@ import { MoreHorizontal, PlusCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Link from 'next/link';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirestore } from '@/firebase/provider';
+import { useFirestore, useMemoFirebase } from '@/firebase/provider';
 import { useCollection } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 
@@ -25,7 +25,7 @@ export default function FarmerProductsPage() {
     const { user } = useUser();
     const firestore = useFirestore();
 
-    const productsQuery = React.useMemo(() => {
+    const productsQuery = useMemoFirebase(() => {
         if (!user) return null;
         return query(collection(firestore, "products"), where("farmer_id", "==", user.uid));
     }, [user, firestore]);

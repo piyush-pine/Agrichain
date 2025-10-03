@@ -11,7 +11,7 @@ import { useUser } from "@/firebase/auth/use-user";
 import Link from "next/link";
 import { useCollection } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
-import { useFirestore } from "@/firebase/provider";
+import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import React from "react";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
@@ -24,12 +24,12 @@ export default function FarmerDashboardPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
-  const productsQuery = React.useMemo(() => {
+  const productsQuery = useMemoFirebase(() => {
       if (!user) return null;
       return query(collection(firestore, "products"), where("farmer_id", "==", user.uid));
   }, [user, firestore]);
 
-  const ordersQuery = React.useMemo(() => {
+  const ordersQuery = useMemoFirebase(() => {
       if (!user) return null;
       return query(collection(firestore, "orders"), where("farmer_id", "==", user.uid));
   }, [user, firestore]);
