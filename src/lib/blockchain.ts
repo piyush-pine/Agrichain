@@ -1,6 +1,6 @@
 
 import { ethers, Signer } from 'ethers';
-import EscrowPayment from '../../artifacts/contracts/EscrowPayment.sol/EscrowPayment.json';
+import EscrowPayment from './blockchain-artifacts/EscrowPayment.json';
 
 // This should be the address the contract was deployed to.
 // You can get this from your deployment script output or Hardhat node.
