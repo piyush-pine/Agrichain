@@ -1,21 +1,15 @@
 'use client';
 
+import React from 'react';
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarInset,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
-  useSidebar,
 } from '@/components/ui/sidebar';
 import { useUser } from '@/firebase/auth/use-user';
 import Link from 'next/link';
@@ -31,8 +25,9 @@ import {
   Leaf,
   Settings,
   Bell,
-  User,
-  ChevronDown
+  User as UserIcon, // Renamed to avoid conflict
+  ChevronDown,
+  Award,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getAuth, signOut } from 'firebase/auth';
@@ -44,7 +39,7 @@ const navItems = {
     { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/admin/users', icon: Users, label: 'User Management' },
     { href: '/admin/quality', icon: ShieldCheck, label: 'Quality Control' },
-    { href: '/admin/fraud', icon: 'ShieldCheck', label: 'Fraud Detection' },
+    { href: '/admin/fraud', icon: ShieldCheck, label: 'Fraud Detection' },
   ],
   buyer: [
     { href: '/buyer/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -55,7 +50,7 @@ const navItems = {
     { href: '/farmer/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/farmer/products', icon: Leaf, label: 'My Products' },
     { href: '/farmer/orders', icon: Package, label: 'Orders' },
-    { href: '/farmer/rewards', icon: 'Award', label: 'Sustainability' },
+    { href: '/farmer/rewards', icon: Award, label: 'Sustainability' },
   ],
   logistics: [
     { href: '/logistics/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -105,7 +100,7 @@ function UserDropdown() {
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                     <DropdownMenuItem>
-                        <User className="mr-2 h-4 w-4" />
+                        <UserIcon className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
@@ -139,14 +134,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
 
   if (loading) {
-    return <div>Loading...</div>; // Or a proper skeleton loader
+    return <div className="flex h-screen items-center justify-center">Loading...</div>; // Or a proper skeleton loader
   }
 
   if (!user || !role) {
+    // If there's no user or the role is missing, don't render the dashboard.
+    // The useEffect above will handle redirection.
     return null;
   }
   
   const currentNav = navItems[role] || [];
+  const IconMap = {
+    LayoutDashboard, Users, ShieldCheck, ShoppingBag, Package, Leaf, Award, Truck
+  }
 
   return (
     <SidebarProvider>
@@ -161,19 +161,21 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
-              {currentNav.map((item) => (
+              {currentNav.map((item) => {
+                const Icon = IconMap[item.icon as keyof typeof IconMap] || item.icon;
+                return(
                 <SidebarMenuItem key={item.label}>
                     <Link href={item.href} legacyBehavior passHref>
                         <SidebarMenuButton
                             isActive={pathname === item.href}
-                            icon={item.icon}
+                            icon={Icon}
                             tooltip={item.label}
                         >
                             {item.label}
                         </SidebarMenuButton>
                     </Link>
                 </SidebarMenuItem>
-              ))}
+              )})}
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
@@ -182,7 +184,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <header className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">
             <div className="flex items-center gap-2">
                 <SidebarTrigger className="md:hidden" />
-                <h1 className="text-lg font-semibold md:text-xl capitalize">{pathname.split('/').pop()?.replace('-', ' ')}</h1>
+                <h1 className="text-lg font-semibold md:text-xl capitalize">{pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}</h1>
             </div>
             <div className='flex items-center gap-4'>
                 <Button variant="ghost" size="icon">

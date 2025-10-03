@@ -24,7 +24,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, getFirestore } from 'firebase/firestore';
+import { useUser } from '@/firebase/auth/use-user';
+import { useEffect } from 'react';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -38,6 +39,8 @@ const formSchema = z.object({
 export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const { user, loading } = useUser();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -46,35 +49,22 @@ export default function LoginPage() {
     },
   });
 
+  useEffect(() => {
+    if (!loading && user && user.role) {
+      router.push(`/${user.role}/dashboard`);
+    }
+  }, [user, loading, router]);
+
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const auth = getAuth();
-      const userCredential = await signInWithEmailAndPassword(
+      await signInWithEmailAndPassword(
         auth,
         values.email,
         values.password
       );
-      const user = userCredential.user;
-
-      if (user) {
-        const db = getFirestore();
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          const role = userData.role;
-          
-          // Store role in a cookie
-          document.cookie = `userRole=${role}; path=/; max-age=86400;`; // 1 day expiry
-          
-          router.push(`/${role}/dashboard`);
-        } else {
-           toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'User data not found.',
-          });
-        }
-      }
+      // Redirection is handled by the useEffect hook
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -82,6 +72,14 @@ export default function LoginPage() {
         description: error.message,
       });
     }
+  }
+
+  if (loading || user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div>Loading...</div>
+      </div>
+    );
   }
 
   return (
@@ -120,8 +118,8 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
-                Login
+              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Logging in...' : 'Login'}
               </Button>
             </form>
           </Form>
