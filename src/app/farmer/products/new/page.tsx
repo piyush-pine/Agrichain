@@ -54,8 +54,10 @@ export default function NewProductPage() {
         }
 
         try {
+            const { image, ...restOfValues } = values;
+
             const productData = {
-                ...values,
+                ...restOfValues,
                 farmer_id: user.uid,
                 status: 'Listed',
                 created_at: serverTimestamp(),
