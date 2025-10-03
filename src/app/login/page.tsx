@@ -62,6 +62,10 @@ export default function LoginPage() {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           const role = userData.role;
+          
+          // Store role in a cookie
+          document.cookie = `userRole=${role}; path=/; max-age=86400;`; // 1 day expiry
+          
           router.push(`/${role}/dashboard`);
         } else {
            toast({
