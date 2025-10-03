@@ -8,10 +8,10 @@
  * secret and does not contain any sensitive information.
  */
 export const firebaseConfig = {
-  apiKey: "API_KEY",
-  authDomain: "PROJECT_ID.firebaseapp.com",
-  projectId: "PROJECT_ID",
-  storageBucket: "PROJECT_ID.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID",
+  apiKey: 'AIzaSyCxxA6fkOcMavBXo9nOAZ_ILZo35HeyHeI',
+  authDomain: 'studio-3285836963-946d4.firebaseapp.com',
+  projectId: 'studio-3285836963-946d4',
+  storageBucket: 'studio-3285836963-946d4.appspot.com',
+  messagingSenderId: '620660611983',
+  appId: '1:620660611983:web:d88e98beff31d661a649fa',
 };
