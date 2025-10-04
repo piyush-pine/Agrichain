@@ -14,13 +14,13 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase/provider';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import Image from 'next/image';
 import { getProductProvenanceContract } from '@/lib/blockchain';
 import { ethers } from 'ethers';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const productSchema = z.object({
   name: z.string().min(3, 'Product name must be at least 3 characters'),
@@ -36,6 +36,7 @@ export default function NewProductPage() {
     const firestore = useFirestore();
     const router = useRouter();
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<z.infer<typeof productSchema>>({
         resolver: zodResolver(productSchema),
@@ -48,12 +49,14 @@ export default function NewProductPage() {
     });
 
     const onSubmit = async (values: z.infer<typeof productSchema>) => {
+        setIsSubmitting(true);
         if (!user) {
             toast({
                 variant: 'destructive',
                 title: 'Authentication Error',
                 description: 'You must be logged in to add a product.',
             });
+            setIsSubmitting(false);
             return;
         }
 
@@ -63,34 +66,40 @@ export default function NewProductPage() {
                 title: 'Wallet Not Connected',
                 description: 'Please connect your wallet on the dashboard before adding a product.',
             });
+            setIsSubmitting(false);
             return;
         }
 
         try {
-            // Step 1: Add product data to Firestore
-            const { image, ...restOfValues } = values;
-            const productData = {
-                ...restOfValues,
+            // Step 1: Add product data to Firestore, get the ID first
+            const productCollection = collection(firestore, 'products');
+            const docRef = await addDoc(productCollection, {
+                // Temporary data, we'll update it later
+                name: values.name,
                 farmer_id: user.uid,
-                status: 'Listed',
-                created_at: serverTimestamp(),
-                quality_cert: '',
-                iot_data: {}
-            };
-            
-            const productRef = await addDocumentNonBlocking(collection(firestore, 'products'), productData);
-            
-            toast({
-                title: 'Product Added to Firestore!',
-                description: `${values.name} has been listed. Now registering on blockchain...`,
+                status: 'creating'
             });
+            const productId = docRef.id;
+
+            // Step 2: Upload image if it exists
+            let imageUrl = '';
+            if (values.image && values.image.length > 0) {
+                 toast({ title: 'Uploading Image...', description: 'Please wait.' });
+                const file = values.image[0];
+                const storage = getStorage();
+                const storageRef = ref(storage, `products/${productId}/${file.name}`);
+                const snapshot = await uploadBytes(storageRef, file);
+                imageUrl = await getDownloadURL(snapshot.ref);
+            }
             
-            // Step 2: Register product on the blockchain
+
+            // Step 3: Register product on the blockchain
+            toast({ title: 'Registering on Blockchain...', description: 'Please approve the transaction in your wallet.' });
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
             const provenanceContract = getProductProvenanceContract(signer);
 
-            const tx = await provenanceContract.registerProduct(values.name, values.category);
+            const tx = await provenanceContract.registerProduct(productId, values.name, values.category);
             toast({
                 title: 'Processing Blockchain Transaction',
                 description: `Waiting for confirmation... Tx: ${tx.hash.slice(0, 10)}...`,
@@ -98,10 +107,28 @@ export default function NewProductPage() {
 
             await tx.wait();
 
+            // Step 4: Update the product in Firestore with all data
+             toast({ title: 'Finalizing...', description: 'Saving all product details.' });
+            const productData = {
+                id: productId,
+                name: values.name,
+                description: values.description,
+                category: values.category,
+                price: values.price,
+                image_url: imageUrl,
+                farmer_id: user.uid,
+                status: 'Listed',
+                created_at: serverTimestamp(),
+                quality_cert: '',
+                iot_data: {}
+            };
+            
+            await setDoc(docRef, productData);
+            
             toast({
                 variant: 'success',
-                title: 'Product Registered on Blockchain!',
-                description: `${values.name} is now immutably recorded.`,
+                title: 'Product Listed Successfully!',
+                description: `${values.name} is now on the marketplace and registered on the blockchain.`,
             });
             
             router.push('/farmer/products');
@@ -112,6 +139,8 @@ export default function NewProductPage() {
                 title: 'Uh oh! Something went wrong.',
                 description: error.reason || error.message || 'Could not add the product.',
             });
+        } finally {
+            setIsSubmitting(false);
         }
     };
     
@@ -223,7 +252,7 @@ export default function NewProductPage() {
                                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                                             <Upload className="w-8 h-8 mb-4 text-muted-foreground" />
                                             <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-                                            <p className="text-xs text-muted-foreground">PNG, JPG or GIF (MAX. 800x400px)</p>
+                                            <p className="text-xs text-muted-foreground">PNG, JPG or GIF</p>
                                         </div>
                                         <input id="dropzone-file" type="file" className="hidden" onChange={handleImageChange} accept="image/png, image/jpeg, image/gif" />
                                     </label>
@@ -237,8 +266,8 @@ export default function NewProductPage() {
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? 'Listing Product...' : 'Add Product'}
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? 'Listing Product...' : 'Add Product'}
                 </Button>
               </div>
             </form>

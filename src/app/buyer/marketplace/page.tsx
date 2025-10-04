@@ -13,6 +13,7 @@ import { useCollection, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 export default function MarketplacePage() {
     const firestore = useFirestore();
@@ -25,7 +26,8 @@ export default function MarketplacePage() {
     
     const { data: products, isLoading } = useCollection(productsQuery);
 
-    const handleAddToCart = (product: any) => {
+    const handleAddToCart = (e: React.MouseEvent, product: any) => {
+        e.preventDefault(); // Prevent navigation when clicking the button
         if (!user) {
             toast({
                 variant: "destructive",
@@ -42,6 +44,7 @@ export default function MarketplacePage() {
             added_at: serverTimestamp(),
             product_name: product.name,
             price: product.price,
+            farmer_id: product.farmer_id,
             image_url: product.image_url || `https://picsum.photos/seed/${product.id}/400/300`
         };
 
@@ -96,30 +99,32 @@ export default function MarketplacePage() {
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         {products?.map((product) => (
-                            <Card key={product.id} className="flex flex-col">
-                                <div className="relative w-full h-48 rounded-t-lg overflow-hidden bg-muted">
-                                    <Image 
-                                        src={product.image_url || `https://picsum.photos/seed/${product.id}/400/300`} 
-                                        alt={product.name} 
-                                        layout="fill"
-                                        objectFit="cover"
-                                    />
-                                </div>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">{product.name}</CardTitle>
-                                    <p className="text-sm text-muted-foreground">{product.category}</p>
-                                </CardHeader>
-                                <CardContent className="flex-grow">
-                                    <p className="text-sm line-clamp-2">{product.description}</p>
-                                </CardContent>
-                                <CardFooter className="flex justify-between items-center">
-                                    <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
-                                    <Button size="sm" onClick={() => handleAddToCart(product)}>
-                                        <ShoppingCart className="mr-2 h-4 w-4" />
-                                        Add to Cart
-                                    </Button>
-                                </CardFooter>
-                            </Card>
+                             <Link key={product.id} href={`/buyer/marketplace/${product.id}`} className="block h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-xl rounded-lg">
+                                <Card className="flex flex-col h-full">
+                                    <div className="relative w-full h-48 rounded-t-lg overflow-hidden bg-muted">
+                                        <Image 
+                                            src={product.image_url || `https://picsum.photos/seed/${product.id}/400/300`} 
+                                            alt={product.name} 
+                                            layout="fill"
+                                            objectFit="cover"
+                                        />
+                                    </div>
+                                    <CardHeader>
+                                        <CardTitle className="text-lg">{product.name}</CardTitle>
+                                        <p className="text-sm text-muted-foreground">{product.category}</p>
+                                    </CardHeader>
+                                    <CardContent className="flex-grow">
+                                        <p className="text-sm line-clamp-2">{product.description}</p>
+                                    </CardContent>
+                                    <CardFooter className="flex justify-between items-center">
+                                        <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
+                                        <Button size="sm" onClick={(e) => handleAddToCart(e, product)}>
+                                            <ShoppingCart className="mr-2 h-4 w-4" />
+                                            Add to Cart
+                                        </Button>
+                                    </CardFooter>
+                                </Card>
+                            </Link>
                         ))}
                     </div>
                 )}

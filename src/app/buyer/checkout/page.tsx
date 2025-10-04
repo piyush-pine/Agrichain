@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { ConnectWalletButton } from '@/components/blockchain/ConnectWalletButton';
-import { getEscrowPaymentContract } from '@/lib/blockchain';
+import { getEscrowPaymentContract, getProductProvenanceContract } from '@/lib/blockchain';
 import { ethers } from 'ethers';
 
 export default function CheckoutPage() {
@@ -40,9 +40,13 @@ export default function CheckoutPage() {
     useEffect(() => {
         const fetchFarmerWallet = async () => {
             if (farmerId) {
-                const farmerDoc = await getDoc(doc(firestore, 'users', farmerId));
-                if (farmerDoc.exists()) {
-                    setFarmerWalletAddress(farmerDoc.data().walletAddress || null);
+                try {
+                    const farmerDoc = await getDoc(doc(firestore, 'users', farmerId));
+                    if (farmerDoc.exists()) {
+                        setFarmerWalletAddress(farmerDoc.data().walletAddress || null);
+                    }
+                } catch(e) {
+                    console.error("Error fetching farmer wallet: ", e);
                 }
             }
         };
@@ -71,6 +75,8 @@ export default function CheckoutPage() {
 
         setIsPlacingOrder(true);
 
+        let orderRef;
+
         try {
             // 1. Create Order in Firestore
             const orderData = {
@@ -89,7 +95,7 @@ export default function CheckoutPage() {
                 created_at: serverTimestamp(),
             };
             
-            const orderRef = await addDocumentNonBlocking(collection(firestore, 'orders'), orderData);
+            orderRef = await addDocumentNonBlocking(collection(firestore, 'orders'), orderData);
             if(!orderRef){
                 throw new Error("Could not create order reference in Firestore.");
             }
@@ -112,7 +118,21 @@ export default function CheckoutPage() {
             
             await transaction.wait(); // Wait for the transaction to be mined
 
-            // 3. Update Order Status and Clear Cart
+            // 3. Update Provenance Chain
+            const provenanceContract = getProductProvenanceContract(signer);
+            for (const item of cartItems) {
+                try {
+                    const provTx = await provenanceContract.updateHistory(item.product_id, `Sold to Buyer ${user.uid.slice(0,6)} in Order #${orderRef.id.slice(0,6)}`);
+                    await provTx.wait(1); // Wait for 1 confirmation
+                } catch (e) {
+                    // This might fail if the product wasn't registered on-chain.
+                    // We'll log it but not fail the whole transaction.
+                    console.warn(`Could not update provenance for product ${item.product_id}`, e);
+                }
+            }
+            
+
+            // 4. Update Order Status and Clear Cart
             const batch = writeBatch(firestore);
             
             // Update order status to confirmed
@@ -135,6 +155,13 @@ export default function CheckoutPage() {
 
         } catch (error: any) {
             console.error("Failed to place order:", error);
+            // If the blockchain transaction fails, we should ideally roll back the Firestore order creation.
+            if (orderRef) {
+                const orderDoc = doc(firestore, 'orders', orderRef.id);
+                // Maybe update status to 'failed' instead of deleting.
+                await writeBatch(firestore).update(orderDoc, { status: 'failed', error: error.reason || error.message }).commit();
+            }
+
             toast({
                 variant: 'destructive',
                 title: 'Order Failed',
