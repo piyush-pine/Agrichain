@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { useCollection, updateDocumentNonBlocking } from "@/firebase";
-import { collection, query, where, orderBy, doc } from "firebase/firestore";
+import { useCollection, updateDocumentNonBlocking, addDocumentNonBlocking } from "@/firebase";
+import { collection, query, where, orderBy, doc, serverTimestamp } from "firebase/firestore";
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -67,6 +67,17 @@ export default function BuyerOrdersPage() {
         const orderRef = doc(firestore, 'orders', order.id);
         updateDocumentNonBlocking(orderRef, { status: 'delivered', escrow_released: true });
         
+        // Award sustainability tokens to the farmer for timely delivery
+        const rewardsCollection = collection(firestore, 'rewards');
+        addDocumentNonBlocking(rewardsCollection, {
+            user_id: order.farmer_id,
+            type: 'timely-delivery',
+            points: 15,
+            order_id: order.id,
+            verified: true,
+            issued_at: serverTimestamp(),
+        });
+
         // This could be a separate process, but for now we'll mark as paid shortly after.
         setTimeout(() => {
              updateDocumentNonBlocking(orderRef, { status: 'paid' });
@@ -75,7 +86,7 @@ export default function BuyerOrdersPage() {
         toast({
             variant: 'success',
             title: 'Payment Released! (Simulated)',
-            description: `You've confirmed delivery. Mock funds have been sent to the farmer.`,
+            description: `You've confirmed delivery. Mock funds sent & farmer rewarded.`,
         });
 
     } catch (error: any) {
