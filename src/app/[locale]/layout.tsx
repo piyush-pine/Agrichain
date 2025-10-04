@@ -5,21 +5,22 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UserProvider } from '@/firebase/auth/use-user';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { NextIntlClientProvider, useMessages } from 'next-intl';
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
 
 export const metadata: Metadata = {
   title: 'AgriClear | Blockchain-Powered Agricultural Supply Chain',
   description: 'AgriClear leverages blockchain technology to create a fair, transparent, and efficient agricultural supply chain ecosystem.',
 };
 
-export default function LocaleLayout({
+export default async function LocaleLayout({
   children,
   params: { locale },
-}: Readonly<{
+}: {
   children: React.ReactNode;
   params: { locale: string };
-}>) {
-  const messages = useMessages();
+}) {
+  const messages = await getMessages();
 
   return (
     <html lang={locale} className="!scroll-smooth" suppressHydrationWarning>
@@ -33,7 +34,7 @@ export default function LocaleLayout({
         <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
       </head>
       <body className="font-body antialiased text-gray-800">
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        <NextIntlClientProvider messages={messages}>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
