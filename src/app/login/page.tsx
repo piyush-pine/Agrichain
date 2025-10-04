@@ -23,11 +23,12 @@ import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
+import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -53,8 +54,8 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // This effect handles redirection for both existing sessions and after a new login.
-    // Crucially, it waits for `user.role` to be defined before redirecting.
+    // This effect reliably handles redirection.
+    // It will fire if a user is already logged in, or after a new login succeeds.
     if (!isUserLoading && user && user.role) {
       mergeLocalCartWithFirestore(user.uid);
       const redirectUrl = localStorage.getItem('redirectAfterLogin') || `/${user.role}/dashboard`;
@@ -65,39 +66,34 @@ export default function LoginPage() {
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    try {
-      const auth = getAuth();
-      await signInWithEmailAndPassword(
-        auth,
-        values.email,
-        values.password
-      );
-      // The useEffect hook will handle redirection once the user object with a role is available.
-      toast({
-        title: 'Login Successful',
-        description: 'Redirecting you to your dashboard...',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Login Failed',
-        description: error.code === 'auth/invalid-credential' 
-          ? 'Invalid email or password. Please try again.'
-          : error.message,
-      });
-    }
+    const auth = getAuth();
+    // This is now a non-blocking call. We let the onAuthStateChanged listener handle the result.
+    initiateEmailSignIn(
+      auth,
+      values.email,
+      values.password
+    );
+
+    // Provide immediate feedback to the user.
+    toast({
+        title: 'Attempting Login...',
+        description: 'You will be redirected shortly.',
+    });
+
+    // We no longer use a try/catch here because errors will be handled globally
+    // or by onAuthStateChanged, and we want the UI to remain responsive.
   }
   
-  // Show a loading state only on the initial check.
-  // Don't render the login form if user is already logged in and about to be redirected.
-  if (isUserLoading || (user && user.role)) {
+  // Show a loading state if we're in the middle of a redirect.
+  if (!isUserLoading && user && user.role) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
-            <div>Loading...</div>
+            <div>Redirecting...</div>
         </div>
     );
   }
 
+  // Otherwise, always show the login form.
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
