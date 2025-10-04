@@ -3,13 +3,13 @@
     {
       "id": "agrichain-logo",
       "description": "AgriChain logo with a green leaf",
-      "imageUrl": "https://images.unsplash.com/photo-1744526313213-5e9e0d736b2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxsb2dvJTIwbGVhZnxlbnwwfHx8fDE3NTk0ODQ1MjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1593113598332-cd288d649433?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzb2lsJTIwbGVhZnxlbnwwfHx8fDE3MTc4ODU5ODV8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "logo leaf"
     },
     {
       "id": "dashboard-preview",
       "description": "Preview of the AgriChain dashboard showing agricultural data",
-      "imageUrl": "https://images.unsplash.com/photo-1642504917866-f48ec5eb3b57?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxhZ3JpY3VsdHVyZSUyMGZhcm18ZW58MHx8fHwxNzU5NDg0NTIyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1492496913980-501348b61469?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxhZ3JpY3VsdHVyZSUyMGZpZWxkfGVufDB8fHx8MTcxNzg4NjA0N3ww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "agriculture farm"
     }
   ]
