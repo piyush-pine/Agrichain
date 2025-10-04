@@ -61,14 +61,14 @@ const Hero = () => {
           </div>
         </div>
         <div className="relative hero-image">
-          <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200">
+          <div className="bg-white rounded-xl shadow-xl border border-gray-200">
             {dashboardImage && (
               <Image
                 src={dashboardImage.imageUrl}
                 alt={dashboardImage.description}
                 width={1200}
                 height={630}
-                className="w-full h-auto"
+                className="w-full h-auto rounded-xl"
                 priority
                 data-ai-hint={dashboardImage.imageHint}
               />
