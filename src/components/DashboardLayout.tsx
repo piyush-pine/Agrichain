@@ -48,8 +48,8 @@ const navItems = {
   admin: [
     { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/admin/users', icon: Users, label: 'User Management' },
-    { href: '/admin/quality', icon: ShieldCheck, label: 'Quality Control' },
-    { href: '/admin/fraud', icon: ShieldCheck, label: 'Fraud Detection' },
+    // { href: '/admin/quality', icon: ShieldCheck, label: 'Quality Control' },
+    // { href: '/admin/fraud', icon: ShieldCheck, label: 'Fraud Detection' },
   ],
   buyer: [
     { href: '/buyer/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
