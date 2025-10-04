@@ -1,6 +1,6 @@
 
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -59,6 +59,7 @@ export default function RegisterRolePage({
   const router = useRouter();
   const role = resolvedParams.role ? capitalizeFirstLetter(resolvedParams.role) : 'User';
   const roleId = resolvedParams.role || 'user';
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -70,6 +71,7 @@ export default function RegisterRolePage({
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
     try {
       const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(
@@ -81,7 +83,7 @@ export default function RegisterRolePage({
       const user = userCredential.user;
       await updateProfile(user, { displayName: values.name });
 
-      // Generate a deterministic, fake wallet address from the user's email
+      // Generate a deterministic, fake wallet address
       const wallet = ethers.Wallet.createRandom();
       const mockWalletAddress = wallet.address;
 
@@ -110,6 +112,8 @@ export default function RegisterRolePage({
         title: 'Registration Failed',
         description: error.message,
       });
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
@@ -162,8 +166,8 @@ export default function RegisterRolePage({
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Registering...' : 'Register'}
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Registering...' : 'Register'}
               </Button>
             </form>
           </Form>
