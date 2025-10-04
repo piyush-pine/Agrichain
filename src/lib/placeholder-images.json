@@ -3,14 +3,14 @@
     {
       "id": "agrichain-logo",
       "description": "AgriChain logo with a green leaf",
-      "imageUrl": "https://images.unsplash.com/photo-1593113598332-cd288d649433?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzb2lsJTIwbGVhZnxlbnwwfHx8fDE3MTc4ODU5ODV8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "logo leaf"
+      "imageUrl": "https://images.unsplash.com/photo-1627894531213-9189591e1d35?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGxlYWZ8ZW58MHx8fHwxNzE3ODg2NTg5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract leaf"
     },
     {
       "id": "dashboard-preview",
       "description": "Preview of the AgriChain dashboard showing agricultural data",
-      "imageUrl": "https://images.unsplash.com/photo-1617953141905-cde7260c1374?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx0ZWNobm9sb2d5JTIwYWdyaWN1bHR1cmV8ZW58MHx8fHwxNzE3ODg2MzMxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "technology agriculture"
+      "imageUrl": "https://images.unsplash.com/photo-1492496913980-501348b61469?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzb2lsfGVufDB8fHx8MTc1OTU5OTU3NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "soil"
     }
   ]
 }
