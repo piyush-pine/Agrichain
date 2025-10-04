@@ -6,12 +6,13 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useCollection, updateDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { MoreHorizontal } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 const roleVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
   farmer: "default",
@@ -22,12 +23,36 @@ const roleVariant: { [key: string]: "default" | "secondary" | "destructive" | "o
 
 export default function AdminUsersPage() {
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const usersQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
         return collection(firestore, "users");
     }, [firestore]);
 
     const { data: users, isLoading } = useCollection(usersQuery);
+
+    const handleToggleVerification = (userId: string, currentStatus: boolean) => {
+        if (!firestore) return;
+        const userRef = doc(firestore, "users", userId);
+        const newStatus = !currentStatus;
+        updateDocumentNonBlocking(userRef, { verified: newStatus });
+        toast({
+            title: `User ${newStatus ? 'Verified' : 'Unverified'}`,
+            description: `The user's verification status has been updated.`,
+        });
+    };
+    
+    const handleToggleSuspension = (userId: string, currentStatus: boolean) => {
+        if (!firestore) return;
+        const userRef = doc(firestore, "users", userId);
+        const newStatus = !currentStatus;
+        updateDocumentNonBlocking(userRef, { disabled: newStatus });
+        toast({
+            title: `User ${newStatus ? 'Suspended' : 'Unsuspended'}`,
+            description: `The user's account status has been updated.`,
+        });
+    };
 
     return (
         <DashboardLayout>
@@ -48,13 +73,14 @@ export default function AdminUsersPage() {
                                 <TableHead>Role</TableHead>
                                 <TableHead>Joined On</TableHead>
                                 <TableHead>Verification Status</TableHead>
+                                <TableHead>Account Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center">Loading users...</TableCell>
+                                    <TableCell colSpan={7} className="text-center">Loading users...</TableCell>
                                 </TableRow>
                             ) : users && users.length > 0 ? (
                                 users.map((user) => (
@@ -70,6 +96,11 @@ export default function AdminUsersPage() {
                                                 {user.verified ? 'Verified' : 'Unverified'}
                                             </Badge>
                                         </TableCell>
+                                         <TableCell>
+                                            <Badge variant={user.disabled ? 'destructive' : 'success'}>
+                                                {user.disabled ? 'Suspended' : 'Active'}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell className="text-right">
                                              <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
@@ -78,11 +109,15 @@ export default function AdminUsersPage() {
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem>View Details</DropdownMenuItem>
-                                                    <DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleToggleVerification(user.id, user.verified)}>
                                                         {user.verified ? 'Revoke Verification' : 'Verify User'}
                                                     </DropdownMenuItem>
-                                                     <DropdownMenuItem className="text-destructive">Suspend User</DropdownMenuItem>
+                                                     <DropdownMenuItem 
+                                                        className={user.disabled ? '' : 'text-destructive'}
+                                                        onClick={() => handleToggleSuspension(user.id, user.disabled)}
+                                                     >
+                                                        {user.disabled ? 'Unsuspend User' : 'Suspend User'}
+                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
@@ -90,7 +125,7 @@ export default function AdminUsersPage() {
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center">No users found.</TableCell>
+                                    <TableCell colSpan={7} className="text-center">No users found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

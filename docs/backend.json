@@ -26,11 +26,15 @@
         },
         "verified": {
           "type": "boolean",
-          "description": "Indicates if the user's account is verified."
+          "description": "Indicates if the user's account is verified by an admin."
         },
         "aadhaar_verified": {
           "type": "boolean",
           "description": "Indicates if the user's Aadhaar has been verified."
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "Indicates if the user's account has been suspended."
         },
         "created_at": {
           "type": "string",
