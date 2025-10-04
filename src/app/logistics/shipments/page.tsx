@@ -9,15 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
-// Mock data for shipments - we will replace this with live data from Firestore later.
-const shipments = [
-  { id: "SHP732", origin: "Nashik, MH", destination: "Mumbai, MH", status: "in-transit", products: "Tomatoes (100kg)" },
-  { id: "SHP591", origin: "Mysuru, KA", destination: "Bengaluru, KA", status: "picked", products: "Organic Rice (500kg)" },
-  { id: "SHP648", origin: "Indore, MP", destination: "Delhi, DL", status: "in-transit", products: "Soybeans (1 Ton)" },
-  { id: "SHP203", origin: "Chittoor, AP", destination: "Chennai, TN", status: "picked", products: "Mangoes (250kg)" },
-  { id: "SHP887", origin: "Hassan, KA", destination: "Mangaluru, KA", status: "delivered", products: "Coffee Beans (300kg)" },
-];
+import { useUser } from '@/firebase/auth/use-user';
+import { useFirestore, useMemoFirebase } from '@/firebase/provider';
+import { useCollection, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
   "in-transit": "default",
@@ -26,6 +22,26 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
 };
 
 export default function ShipmentsPage() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const shipmentsQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, "shipments"), where("logistics_id", "==", user.uid));
+  }, [user, firestore]);
+
+  const { data: shipments, isLoading } = useCollection(shipmentsQuery);
+
+  const handleUpdateStatus = (shipmentId: string, newStatus: string) => {
+    const shipmentRef = doc(firestore, 'shipments', shipmentId);
+    updateDocumentNonBlocking(shipmentRef, { status: newStatus });
+    toast({
+        title: "Shipment Updated",
+        description: `Shipment #${shipmentId.slice(0,6)} marked as ${newStatus}.`,
+    });
+  };
+
   return (
     <DashboardLayout>
         <div className="flex items-center justify-between mb-6">
@@ -41,39 +57,54 @@ export default function ShipmentsPage() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Shipment ID</TableHead>
-                            <TableHead>Origin</TableHead>
-                            <TableHead>Destination</TableHead>
+                            <TableHead>Order ID</TableHead>
                             <TableHead>Products</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead>Date Assigned</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {shipments.map((shipment) => (
-                            <TableRow key={shipment.id}>
-                                <TableCell className="font-medium">{shipment.id}</TableCell>
-                                <TableCell>{shipment.origin}</TableCell>
-                                <TableCell>{shipment.destination}</TableCell>
-                                <TableCell>{shipment.products}</TableCell>
-                                <TableCell>
-                                    <Badge variant={statusVariant[shipment.status] || "default"}>{shipment.status}</Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button size="icon" variant="ghost">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem>Update Status</DropdownMenuItem>
-                                            <DropdownMenuItem>View Details</DropdownMenuItem>
-                                            <DropdownMenuItem>Log IoT Data</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
+                         {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center">Loading shipments...</TableCell>
                             </TableRow>
-                        ))}
+                        ) : shipments && shipments.length > 0 ? (
+                            shipments.map((shipment) => (
+                                <TableRow key={shipment.id}>
+                                    <TableCell className="font-medium">#{shipment.id.slice(0,6)}...</TableCell>
+                                    <TableCell>#{shipment.order_id.slice(0,6)}...</TableCell>
+                                    <TableCell>{shipment.items.map((i:any) => i.product_name).join(', ')}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={statusVariant[shipment.status] || "default"}>{shipment.status}</Badge>
+                                    </TableCell>
+                                    <TableCell>{shipment.created_at ? new Date(shipment.created_at.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
+                                    <TableCell className="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button size="icon" variant="ghost">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {shipment.status === 'picked' && (
+                                                    <DropdownMenuItem onClick={() => handleUpdateStatus(shipment.id, 'in-transit')}>Mark In-Transit</DropdownMenuItem>
+                                                )}
+                                                {shipment.status === 'in-transit' && (
+                                                    <DropdownMenuItem onClick={() => handleUpdateStatus(shipment.id, 'delivered')}>Mark Delivered</DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuItem>View Details</DropdownMenuItem>
+                                                <DropdownMenuItem>Log IoT Data</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center">No shipments assigned to you.</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -81,4 +112,3 @@ export default function ShipmentsPage() {
     </DashboardLayout>
   );
 }
-

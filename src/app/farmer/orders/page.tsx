@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,12 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
-import { useCollection } from '@/firebase';
+import { useCollection, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { doc } from 'firebase/firestore';
+import { doc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Truck } from 'lucide-react';
 
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
@@ -35,9 +43,14 @@ export default function FarmerOrdersPage() {
         return query(collection(firestore, "orders"), where("farmer_id", "==", user.uid));
     }, [user, firestore]);
 
-    const { data: orders, isLoading } = useCollection(ordersQuery);
+    const logisticsQuery = useMemoFirebase(() => {
+        return query(collection(firestore, "users"), where("role", "==", "logistics"));
+    }, [firestore]);
 
-    if (isLoading) {
+    const { data: orders, isLoading: isLoadingOrders } = useCollection(ordersQuery);
+    const { data: logisticsPartners, isLoading: isLoadingLogistics } = useCollection(logisticsQuery);
+
+    if (isLoadingOrders || isLoadingLogistics) {
         return <DashboardLayout><div>Loading...</div></DashboardLayout>
     }
 
@@ -63,22 +76,22 @@ export default function FarmerOrdersPage() {
                     <TabsTrigger value="new">New</TabsTrigger>
                     <TabsTrigger value="processing">Processing</TabsTrigger>
                     <TabsTrigger value="shipped">Shipped</TabsTrigger>
-                    <TabsTrigger value="delivered">Delivered</TabsTrigger>
+                    <TabsTrigger value="delivered">Delivered & Paid</TabsTrigger>
                 </TabsList>
                 <TabsContent value="all">
-                    <OrderTable orders={orders || []} firestore={firestore} />
+                    <OrderTable orders={orders || []} firestore={firestore} logisticsPartners={logisticsPartners || []} />
                 </TabsContent>
                  <TabsContent value="new">
-                    <OrderTable orders={filteredOrders('confirmed')} firestore={firestore} />
+                    <OrderTable orders={filteredOrders('confirmed')} firestore={firestore} logisticsPartners={logisticsPartners || []} />
                 </TabsContent>
                 <TabsContent value="processing">
-                    <OrderTable orders={filteredOrders('processing')} firestore={firestore} />
+                    <OrderTable orders={filteredOrders('processing')} firestore={firestore} logisticsPartners={logisticsPartners || []} />
                 </TabsContent>
                 <TabsContent value="shipped">
-                    <OrderTable orders={filteredOrders('shipped')} firestore={firestore} />
+                    <OrderTable orders={filteredOrders('shipped')} firestore={firestore} logisticsPartners={logisticsPartners || []} />
                 </TabsContent>
                 <TabsContent value="delivered">
-                    <OrderTable orders={filteredOrders('delivered')} firestore={firestore} />
+                    <OrderTable orders={filteredOrders(['delivered', 'paid'])} firestore={firestore} logisticsPartners={logisticsPartners || []} />
                 </TabsContent>
             </Tabs>
         </CardContent>
@@ -87,8 +100,9 @@ export default function FarmerOrdersPage() {
   );
 }
 
-function OrderTable({ orders, firestore }: { orders: any[], firestore: any }) {
+function OrderTable({ orders, firestore, logisticsPartners }: { orders: any[], firestore: any, logisticsPartners: any[] }) {
     const { toast } = useToast();
+    const [selectedLogistics, setSelectedLogistics] = useState<{ [key: string]: string }>({});
 
     const handleUpdateStatus = (orderId: string, newStatus: string) => {
         const orderRef = doc(firestore, 'orders', orderId);
@@ -96,6 +110,41 @@ function OrderTable({ orders, firestore }: { orders: any[], firestore: any }) {
         toast({
             title: "Order Updated",
             description: `Order #${orderId.slice(0,6)} marked as ${newStatus}.`,
+        });
+    };
+    
+    const handleMarkAsShipped = (order: any) => {
+        const logisticsId = selectedLogistics[order.id];
+        if (!logisticsId) {
+            toast({
+                variant: 'destructive',
+                title: "Logistics partner not selected",
+                description: "Please select a logistics partner before marking as shipped.",
+            });
+            return;
+        }
+
+        // 1. Update order status
+        const orderRef = doc(firestore, 'orders', order.id);
+        updateDocumentNonBlocking(orderRef, { status: 'shipped' });
+
+        // 2. Create shipment document
+        const shipmentCollection = collection(firestore, 'shipments');
+        const shipmentData = {
+            order_id: order.id,
+            logistics_id: logisticsId,
+            status: 'picked', // Initial status for a new shipment
+            created_at: serverTimestamp(),
+            // You can add more details from the order if needed
+            origin: "Farmer's Location", // Placeholder
+            destination: "Buyer's Location", // Placeholder
+            items: order.items,
+        };
+        addDocumentNonBlocking(shipmentCollection, shipmentData);
+
+        toast({
+            title: "Order Shipped!",
+            description: `Order #${order.id.slice(0,6)} has been marked as shipped and assigned.`,
         });
     };
 
@@ -127,12 +176,32 @@ function OrderTable({ orders, firestore }: { orders: any[], firestore: any }) {
                             <Badge variant={statusVariant[order.status.toLowerCase()] || "default"}>{order.status}</Badge>
                         </TableCell>
                         <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center space-y-2">
                             {order.status === 'confirmed' && (
                                 <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'processing')}>Accept Order</Button>
                             )}
                              {order.status === 'processing' && (
-                                <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'shipped')}>Mark as Shipped</Button>                            )}
+                               <div className="flex items-center justify-center gap-2">
+                                    <Select 
+                                        onValueChange={(value) => setSelectedLogistics(prev => ({...prev, [order.id]: value}))}
+                                    >
+                                        <SelectTrigger className="w-[180px]">
+                                            <SelectValue placeholder="Select Logistics" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {logisticsPartners.map(lp => (
+                                                <SelectItem key={lp.id} value={lp.id}>
+                                                    {lp.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Button size="sm" onClick={() => handleMarkAsShipped(order)} disabled={!selectedLogistics[order.id]}>
+                                        <Truck className="mr-2 h-4 w-4" />
+                                        Ship
+                                    </Button>
+                               </div>
+                            )}
                         </TableCell>
                     </TableRow>
                 ))}
