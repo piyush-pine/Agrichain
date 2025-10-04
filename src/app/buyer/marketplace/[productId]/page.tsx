@@ -35,26 +35,36 @@ export default function ProductDetailPage({ params }: { params: { productId: str
 
     useEffect(() => {
         const fetchFarmerAndProvenance = async () => {
-            if (product) {
+            if (product && product.farmer_id && firestore) {
                 // Fetch farmer details
-                const farmerRef = doc(firestore, 'users', product.farmer_id);
-                const farmerSnap = await getDoc(farmerRef);
-                if (farmerSnap.exists()) {
-                    setFarmer(farmerSnap.data());
+                try {
+                    const farmerRef = doc(firestore, 'users', product.farmer_id);
+                    const farmerSnap = await getDoc(farmerRef);
+                    if (farmerSnap.exists()) {
+                        setFarmer(farmerSnap.data());
+                    }
+                } catch(e) {
+                    console.error("Error fetching farmer data: ", e);
                 }
+
 
                 // Fetch blockchain history
                 setIsLoadingProvenance(true);
-                const history = await getProductHistory(product.id);
-                setProvenance(history);
-                setIsLoadingProvenance(false);
+                 try {
+                    const history = await getProductHistory(product.id);
+                    setProvenance(history);
+                } catch(e) {
+                    console.error("Error fetching provenance data: ", e);
+                } finally {
+                    setIsLoadingProvenance(false);
+                }
             }
         };
         fetchFarmerAndProvenance();
     }, [product, firestore]);
 
-    const handleAddToCart = (product: any) => {
-        if (!user) {
+    const handleAddToCart = () => {
+        if (!user || !product) {
             toast({
                 variant: "destructive",
                 title: "Not Logged In",
@@ -85,14 +95,17 @@ export default function ProductDetailPage({ params }: { params: { productId: str
     if (isLoadingProduct) {
         return (
             <DashboardLayout>
-                <div className="grid md:grid-cols-2 gap-8">
-                    <Skeleton className="h-[400px] w-full" />
-                    <div className="space-y-4">
+                <div className="grid md:grid-cols-5 gap-12">
+                    <div className="md:col-span-3 space-y-4">
+                        <Skeleton className="h-96 w-full" />
                         <Skeleton className="h-10 w-3/4" />
-                        <Skeleton className="h-6 w-1/4" />
                         <Skeleton className="h-20 w-full" />
-                        <Skeleton className="h-12 w-1/2" />
+                        <Skeleton className="h-12 w-1/3 ml-auto" />
                     </div>
+                     <div className="md:col-span-2 space-y-8">
+                         <Skeleton className="h-32 w-full" />
+                         <Skeleton className="h-64 w-full" />
+                     </div>
                 </div>
             </DashboardLayout>
         );
@@ -129,7 +142,7 @@ export default function ProductDetailPage({ params }: { params: { productId: str
                             <p className="text-muted-foreground">{product.description}</p>
                             <Separator className="my-6" />
                             <div className="flex justify-end">
-                                 <Button size="lg" onClick={() => handleAddToCart(product)}>
+                                 <Button size="lg" onClick={handleAddToCart}>
                                     <ShoppingCart className="mr-2 h-5 w-5" />
                                     Add to Cart
                                 </Button>
@@ -138,7 +151,7 @@ export default function ProductDetailPage({ params }: { params: { productId: str
                     </Card>
                 </div>
                 <div className="md:col-span-2 space-y-8">
-                    {farmer && (
+                    {farmer ? (
                          <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -148,8 +161,17 @@ export default function ProductDetailPage({ params }: { params: { productId: str
                             </CardHeader>
                             <CardContent>
                                 <p className="font-semibold text-xl">{farmer.name}</p>
-                                <p className="text-sm text-muted-foreground">Member since {new Date(farmer.created_at.seconds * 1000).getFullYear()}</p>
+                                {farmer.created_at && (
+                                    <p className="text-sm text-muted-foreground">Member since {new Date(farmer.created_at.seconds * 1000).getFullYear()}</p>
+                                )}
                                 {/* We can add farmer ratings here later */}
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card>
+                            <CardContent className="pt-6">
+                                <Skeleton className="h-6 w-1/2 mb-2" />
+                                <Skeleton className="h-4 w-1/3" />
                             </CardContent>
                         </Card>
                     )}
@@ -165,7 +187,7 @@ export default function ProductDetailPage({ params }: { params: { productId: str
                         </CardHeader>
                         <CardContent>
                            {isLoadingProvenance ? (
-                                <div className="space-y-2">
+                                <div className="space-y-4 pt-2">
                                     <Skeleton className="h-8 w-full" />
                                     <Skeleton className="h-8 w-full" />
                                 </div>
@@ -186,7 +208,7 @@ export default function ProductDetailPage({ params }: { params: { productId: str
                                     ))}
                                 </ul>
                             ) : (
-                                <p className="text-sm text-muted-foreground">No blockchain history found for this product.</p>
+                                <p className="text-sm text-muted-foreground text-center py-4">No blockchain history found for this product.</p>
                            )}
                         </CardContent>
                     </Card>
@@ -195,4 +217,3 @@ export default function ProductDetailPage({ params }: { params: { productId: str
         </DashboardLayout>
     );
 }
-
