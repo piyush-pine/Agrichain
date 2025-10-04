@@ -8,13 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { useCollection } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, orderBy } from "firebase/firestore";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
   shipped: "default",
   pending: "secondary",
   delivered: "success",
-  confirmed: "default"
+  confirmed: "default",
+  paid: "success",
+  processing: "secondary",
 };
 
 export default function BuyerOrdersPage() {
@@ -23,7 +25,11 @@ export default function BuyerOrdersPage() {
 
   const ordersQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return query(collection(firestore, "orders"), where("buyer_id", "==", user.uid));
+    return query(
+        collection(firestore, "orders"), 
+        where("buyer_id", "==", user.uid),
+        orderBy("created_at", "desc")
+    );
   }, [user, firestore]);
 
   const { data: orders, isLoading } = useCollection(ordersQuery);
@@ -68,7 +74,7 @@ export default function BuyerOrdersPage() {
                       ))
                     ) : (
                       <TableRow>
-                          <TableCell colSpan={5} className="text-center">You have no orders yet.</TableCell>
+                          <TableCell colSpan={5} className="text-center">You have no orders yet. <Link href="/buyer/marketplace" className="text-primary underline">Start shopping</Link>.</TableCell>
                       </TableRow>
                     )}
                 </TableBody>

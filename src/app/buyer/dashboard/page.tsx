@@ -36,7 +36,7 @@ export default function BuyerDashboardPage() {
             <CardDescription>Track your active and past orders.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">You have <strong>3</strong> active orders.</p>
+            <p className="text-sm text-muted-foreground mb-4">You have <strong>3</strong> active orders (mock data).</p>
             <Button asChild variant="secondary" className="w-full">
                 <Link href="/buyer/orders">View Orders</Link>
             </Button>

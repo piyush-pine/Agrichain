@@ -1,76 +1,178 @@
+/**
+ * @file Firestore Security Rules for AgriClear Platform
+ * @version Prototyping
+ *
+ * @description
+ * This ruleset enforces a user-ownership model for user profiles and their associated data
+ * (e.g., cart). Products are publicly readable, but only the owning farmer can modify them.
+ * Orders and Shipments have no specific access control and are open. Rewards are open.
+ * Fraud Alerts are open.
+ *
+ * Data Structure:
+ * - /users/{userId}: User profile information.
+ * - /users/{userId}/cart/{productId}: Items in the user's cart.
+ * - /products/{productId}: Product listings.
+ * - /orders/{orderId}: Order information.
+ * - /shipments/{shipmentId}: Shipment details.
+ * - /rewards/{rewardId}: Reward information for users.
+ * - /fraud_alerts/{alertId}: Fraud alerts detected by the AI module.
+ *
+ * Key Security Decisions:
+ * - Users can only read/write their own profile data and cart items.
+ * - Products are publicly readable but writable only by the owning farmer.
+ * - Orders and Shipments are completely open (no authorization checks). This is for prototyping purposes.
+ * - Rewards are completely open (no authorization checks). This is for prototyping purposes.
+ * - Fraud Alerts are completely open (no authorization checks). This is for prototyping purposes.
+ * - Listing of users is disallowed.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * @description Controls access to user profile documents.
+     * @path /users/{userId}
+     * @allow (create) User with ID 'user123' can create their profile.
+     * @allow (get) User with ID 'user123' can read their profile.
+     * @allow (update) User with ID 'user123' can update their profile.
+     * @allow (delete) User with ID 'user123' can delete their profile.
+     * @deny (create) User with ID 'user123' cannot create a profile with ID 'user456'.
+     * @principle Enforces document ownership for writes; users can only modify their own profile.
+     */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource.path);
-      }
-
-      allow get: if isOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
+    /**
+     * @description Controls access to cart items for a user.
+     * @path /users/{userId}/cart/{productId}
+     * @allow (create) User with ID 'user123' can add a product to their cart.
+     * @allow (get) User with ID 'user123' can read an item in their cart.
+     * @allow (update) User with ID 'user123' can update an item in their cart.
+     * @allow (delete) User with ID 'user123' can remove an item from their cart.
+     * @deny (create) User with ID 'user123' cannot add an item to another user's cart.
+     * @principle Enforces document ownership; users can only manage items in their own cart.
+     */
     match /users/{userId}/cart/{productId} {
-       function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource.path);
-      }
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
 
+    /**
+     * @description Controls access to product listings.
+     * @path /products/{productId}
+     * @allow (get) Any user can read product listings.
+     * @allow (create) Farmer with ID 'farmer123' can create a product with farmer_id 'farmer123'.
+     * @allow (update) Farmer with ID 'farmer123' can update their own product.
+     * @allow (delete) Farmer with ID 'farmer123' can delete their own product.
+     * @deny (create) User with ID 'buyer456' cannot create a product with farmer_id 'farmer123'.
+     * @principle Allows public read access but restricts modifications to the owning farmer.
+     */
     match /products/{productId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
       allow get: if true;
       allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && request.resource.data.farmer_id == resource.data.farmer_id;
-      allow delete: if isSignedIn() && request.resource.data.farmer_id == resource.data.farmer_id;
+      allow create: if isSignedIn() && request.resource.data.farmer_id == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.farmer_id);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.farmer_id);
     }
 
+    /**
+     * @description Controls access to order documents.  No access control is enforced.
+     * @path /orders/{orderId}
+     * @allow (get) Any user can read order information.
+     * @allow (create) Any user can create order information.
+     * @allow (update) Any user can update order information.
+     * @allow (delete) Any user can delete order information.
+     * @principle Orders are completely open.
+     */
     match /orders/{orderId} {
-      allow read: if false;
-      allow write: if false;
+      allow get: if true;
+      allow list: if true;
+      allow create: if true;
+      allow update: if resource != null;
+      allow delete: if resource != null;
     }
 
+    /**
+     * @description Controls access to shipment documents.  No access control is enforced.
+     * @path /shipments/{shipmentId}
+     * @allow (get) Any user can read shipment details.
+     * @allow (create) Any user can create shipment details.
+     * @allow (update) Any user can update shipment details.
+     * @allow (delete) Any user can delete shipment details.
+     * @principle Shipments are completely open.
+     */
     match /shipments/{shipmentId} {
-      allow read: if false;
-      allow write: if false;
+      allow get: if true;
+      allow list: if true;
+      allow create: if true;
+      allow update: if resource != null;
+      allow delete: if resource != null;
     }
 
+    /**
+     * @description Controls access to reward documents.  No access control is enforced.
+     * @path /rewards/{rewardId}
+     * @allow (get) Any user can read reward information.
+     * @allow (create) Any user can create reward information.
+     * @allow (update) Any user can update reward information.
+     * @allow (delete) Any user can delete reward information.
+     */
     match /rewards/{rewardId} {
-      allow read: if false;
-      allow write: if false;
+      allow get: if true;
+      allow list: if true;
+      allow create: if true;
+      allow update: if resource != null;
+      allow delete: if resource != null;
     }
 
+    /**
+     * @description Controls access to fraud alert documents.  No access control is enforced.
+     * @path /fraud_alerts/{alertId}
+     * @allow (get) Any user can read fraud alert information.
+     * @allow (create) Any user can create fraud alert information.
+     * @allow (update) Any user can update fraud alert information.
+     * @allow (delete) Any user can delete fraud alert information.
+     */
     match /fraud_alerts/{alertId} {
-      allow read: if false;
-      allow write: if false;
+      allow get: if true;
+      allow list: if true;
+      allow create: if true;
+      allow update: if resource != null;
+      allow delete: if resource != null;
     }
+  }
+
+  /**
+   * @description Checks if the user is signed in.
+   * @return True if the user is signed in, false otherwise.
+   */
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  /**
+   * @description Checks if the user ID matches the authenticated user's ID.
+   * @param {string} userId The user ID to check.
+   * @return True if the user ID matches the authenticated user's ID, false otherwise.
+   */
+  function isOwner(userId) {
+    return isSignedIn() && request.auth.uid == userId;
+  }
+
+  /**
+   * @description Checks if the user is the owner of an existing document.
+   * @param {string} userId The user ID to check.
+   * @return True if the user is the owner of the existing document, false otherwise.
+   */
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }
