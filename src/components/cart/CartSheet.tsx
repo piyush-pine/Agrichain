@@ -34,7 +34,7 @@ export function CartSheet() {
         <Sheet>
             <SheetTrigger asChild>
                 <Button variant="outline" size="icon" className="relative">
-                    <ShoppingCart className="h-5 w-5" />
+                    <ShoppingCart className="h-5 w-5 text-foreground/80" />
                     {cartItems && cartItems.length > 0 && (
                         <Badge variant="destructive" className="absolute -top-2 -right-2 h-5 w-5 justify-center p-0">{cartItems.length}</Badge>
                     )}
