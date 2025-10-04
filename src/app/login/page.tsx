@@ -54,7 +54,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     // This effect handles redirection for both existing sessions and after a new login.
-    if (!isUserLoading && user?.role) {
+    // Crucially, it waits for `user.role` to be defined before redirecting.
+    if (!isUserLoading && user && user.role) {
       mergeLocalCartWithFirestore(user.uid);
       const redirectUrl = localStorage.getItem('redirectAfterLogin') || `/${user.role}/dashboard`;
       localStorage.removeItem('redirectAfterLogin');
@@ -87,19 +88,12 @@ export default function LoginPage() {
     }
   }
   
-  if (isUserLoading) {
+  // Show a loading state only on the initial check.
+  // Don't render the login form if user is already logged in and about to be redirected.
+  if (isUserLoading || (user && user.role)) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
             <div>Loading...</div>
-        </div>
-    );
-  }
-  
-  // Do not render the login form if user is already logged in and about to be redirected.
-  if (user) {
-    return (
-        <div className="flex min-h-screen items-center justify-center bg-background p-4">
-            <div>Redirecting...</div>
         </div>
     );
   }
