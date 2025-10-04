@@ -32,12 +32,14 @@ import {
   Home,
   Wallet,
   ShieldAlert,
+  Loader2,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getAuth, signOut } from 'firebase/auth';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { CartSheet } from './cart/CartSheet';
+import { Skeleton } from './ui/skeleton';
 
 const navItems = {
   admin: [
@@ -136,6 +138,54 @@ function UserDropdown() {
     )
 }
 
+function DashboardSkeleton() {
+  return (
+      <SidebarProvider>
+        <Sidebar variant="sidebar" collapsible="icon">
+          <SidebarHeader>
+              <div className="flex items-center gap-2 p-2">
+                <Leaf className="w-6 h-6 text-primary" />
+                <span className="font-bold text-lg text-sidebar-primary group-data-[collapsible=icon]:hidden">
+                    AgriClear
+                </span>
+              </div>
+          </SidebarHeader>
+          <SidebarContent>
+            <div className="flex flex-col gap-2 p-2">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+            </div>
+          </SidebarContent>
+        </Sidebar>
+
+        <SidebarInset>
+          <header className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">
+            <div className="flex items-center gap-2">
+                <SidebarTrigger className="md:hidden" />
+                <Skeleton className="h-6 w-32" />
+            </div>
+            <div className='flex items-center gap-4'>
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="flex items-center gap-2">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-6 w-20 hidden md:block" />
+                </div>
+            </div>
+          </header>
+          <main className="flex-1 p-4 sm:p-6">
+              <div className="space-y-4">
+                  <Skeleton className="h-10 w-1/4" />
+                  <Skeleton className="h-40 w-full" />
+                   <Skeleton className="h-40 w-full" />
+              </div>
+          </main>
+        </SidebarInset>
+    </SidebarProvider>
+  )
+}
+
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -152,7 +202,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   
 
   if (loading || !user || !role) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>; // Or a proper skeleton loader
+    return <DashboardSkeleton />;
   }
   
   const currentNav = navItems[role] || [];
