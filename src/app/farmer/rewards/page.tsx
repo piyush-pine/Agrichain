@@ -9,6 +9,7 @@ import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import { useCollection } from "@/firebase";
 import { collection, query, where, orderBy } from "firebase/firestore";
 import React from "react";
+import { Button } from "@/components/ui/button";
 
 const rewardDetails: { [key: string]: { icon: React.ElementType, title: string, color: string, description: string } } = {
     "organic": { icon: Leaf, title: "Organic Farming", color: "text-green-500", description: "For listing certified organic products" },
