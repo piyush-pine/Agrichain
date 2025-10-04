@@ -1,3 +1,4 @@
+
 'use client';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, DocumentData, getDoc } from 'firebase/firestore';

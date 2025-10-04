@@ -41,7 +41,7 @@ const formSchema = z.object({
 export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
-  const { user, loading } = useUser();
+  const { user, loading: isUserLoading } = useUser();
   const { mergeLocalCartWithFirestore } = useCart();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -53,15 +53,14 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // This effect handles redirection if the user is already authenticated
-    // or after a successful login when their role is fetched.
-    if (!loading && user && user.role) {
+    // This effect handles redirection for both existing sessions and after a new login.
+    if (!isUserLoading && user?.role) {
       mergeLocalCartWithFirestore(user.uid);
       const redirectUrl = localStorage.getItem('redirectAfterLogin') || `/${user.role}/dashboard`;
       localStorage.removeItem('redirectAfterLogin');
       router.push(redirectUrl);
     }
-  }, [user, loading, router, mergeLocalCartWithFirestore]);
+  }, [user, isUserLoading, router, mergeLocalCartWithFirestore]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -72,7 +71,7 @@ export default function LoginPage() {
         values.email,
         values.password
       );
-      // After successful sign-in, the useEffect hook above will handle the redirection.
+      // The useEffect hook will handle redirection once the user object with a role is available.
       toast({
         title: 'Login Successful',
         description: 'Redirecting you to your dashboard...',
@@ -87,9 +86,24 @@ export default function LoginPage() {
       });
     }
   }
+  
+  if (isUserLoading) {
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+            <div>Loading...</div>
+        </div>
+    );
+  }
+  
+  // Do not render the login form if user is already logged in and about to be redirected.
+  if (user) {
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+            <div>Redirecting...</div>
+        </div>
+    );
+  }
 
-  // The form is always shown if the user is not yet redirected.
-  // The useEffect handles the redirection logic in the background.
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
