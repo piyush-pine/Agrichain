@@ -180,7 +180,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
   
   const currentNav = navItems[role] || [];
-  const showWalletPrompt = role === 'farmer' && !user.walletAddress;
+  const showWalletPrompt = (role === 'farmer' || role === 'buyer') && !user.walletAddress;
   
   return (
     <SidebarProvider>
