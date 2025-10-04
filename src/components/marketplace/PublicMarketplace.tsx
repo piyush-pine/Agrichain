@@ -13,6 +13,7 @@ import { collection, limit, query } from 'firebase/firestore';
 import Link from 'next/link';
 import { useCart } from '@/hooks/use-cart';
 import { exampleProducts } from '@/lib/example-products';
+import { useTranslations } from 'next-intl';
 
 interface PublicMarketplaceProps {
     isHomePage?: boolean;
@@ -21,6 +22,7 @@ interface PublicMarketplaceProps {
 export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps) {
     const firestore = useFirestore();
     const { addToCart } = useCart();
+    const t = useTranslations('PublicMarketplace');
 
     const productsQuery = useMemoFirebase(() => {
         if (!firestore || isHomePage) return null; // Don't fetch if on homepage
@@ -37,8 +39,8 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
         addToCart(product);
     };
     
-    const pageTitle = isHomePage ? "Featured Products" : "Marketplace";
-    const pageDescription = isHomePage ? "Explore some of our best-selling products." : "Browse fresh produce directly from verified farmers.";
+    const pageTitle = isHomePage ? t('title') : "Marketplace";
+    const pageDescription = isHomePage ? t('description') : "Browse fresh produce directly from verified farmers.";
 
     return (
         <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -50,7 +52,7 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
                     </div>
                      {isHomePage && (
                         <Button asChild variant="outline">
-                            <Link href="/buyer/marketplace">View All Products</Link>
+                            <Link href="/buyer/marketplace">{t('viewAll')}</Link>
                         </Button>
                     )}
                 </div>
@@ -59,11 +61,11 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
                     <div className="flex items-center gap-4">
                         <div className="relative flex-grow">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Search for products..." className="pl-10" />
+                            <Input placeholder={t('searchPlaceholder')} className="pl-10" />
                         </div>
                         <Button variant="outline">
                             <Filter className="mr-2 h-4 w-4" />
-                            Filter
+                            {t('filter')}
                         </Button>
                     </div>
                 )}
@@ -91,7 +93,7 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         {products?.map((product) => (
                              <Link key={product.id} href={`/buyer/marketplace/${product.id}`} className="block h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-xl rounded-lg">
-                                <Card className="flex flex-col h-full bg-card dark:bg-gray-800">
+                                <Card className="flex flex-col h-full bg-card dark:bg-gray-800/50">
                                     <div className="relative w-full h-48 rounded-t-lg overflow-hidden bg-muted">
                                         <Image 
                                             src={product.image_url || `https://picsum.photos/seed/${product.id}/400/300`} 
@@ -111,7 +113,7 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
                                         <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
                                         <Button size="sm" onClick={(e) => handleAddToCart(e, product)}>
                                             <ShoppingCart className="mr-2 h-4 w-4" />
-                                            Add
+                                            {t('addToCart')}
                                         </Button>
                                     </CardFooter>
                                 </Card>
@@ -121,8 +123,8 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
                 )}
                  {!isLoading && products?.length === 0 && (
                     <div className="col-span-full text-center py-16">
-                        <h3 className="text-xl font-semibold">No Products Found</h3>
-                        <p className="text-muted-foreground">Check back later for new listings.</p>
+                        <h3 className="text-xl font-semibold">{t('noProductsTitle')}</h3>
+                        <p className="text-muted-foreground">{t('noProductsDescription')}</p>
                     </div>
                  )}
             </div>

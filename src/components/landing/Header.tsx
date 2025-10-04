@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useUser } from '@/firebase/auth/use-user';
 import { CartSheet } from '../cart/CartSheet';
 import { ThemeToggle } from '../ThemeToggle';
+import { useTranslations } from 'next-intl';
 
 declare global {
   interface Window {
@@ -19,6 +20,7 @@ declare global {
 const Header = () => {
   const logo = PlaceHolderImages.find((img) => img.id === 'agrichain-logo');
   const { user } = useUser();
+  const t = useTranslations('Header');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.anime) {
@@ -33,7 +35,7 @@ const Header = () => {
   }, []);
 
   return (
-    <nav className="bg-background/90 backdrop-filter backdrop-blur-lg shadow-sm sticky top-0 z-50">
+    <nav className="bg-background/90 backdrop-filter backdrop-blur-lg shadow-sm sticky top-0 z-50 dark:bg-background/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -52,28 +54,28 @@ const Header = () => {
           </div>
           <div className="hidden md:flex items-center space-x-4">
             <Link href="/buyer/marketplace" className="px-3 py-2 text-sm font-medium text-foreground hover:text-primary">
-              Marketplace
+              {t('marketplace')}
             </Link>
             <Link href="#features" className="px-3 py-2 text-sm font-medium text-foreground hover:text-primary">
-              Features
+              {t('features')}
             </Link>
             <Link href="#about" className="px-3 py-2 text-sm font-medium text-foreground hover:text-primary">
-              About
+              {t('about')}
             </Link>
             <div className="ml-4 flex items-center space-x-2">
               <ThemeToggle />
               <CartSheet />
               {user ? (
                  <Button asChild>
-                    <Link href={`/${user.role}/dashboard`}>Dashboard</Link>
+                    <Link href={`/${user.role}/dashboard`}>{t('dashboard')}</Link>
                  </Button>
               ) : (
                 <>
                     <Button variant="secondary" asChild>
-                        <Link href="/login">Login</Link>
+                        <Link href="/login">{t('login')}</Link>
                     </Button>
                     <Button asChild>
-                        <Link href="/register">Register</Link>
+                        <Link href="/register">{t('register')}</Link>
                     </Button>
                 </>
               )}

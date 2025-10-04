@@ -1,0 +1,60 @@
+{
+  "Header": {
+    "marketplace": "Marketplace",
+    "features": "Features",
+    "about": "About",
+    "login": "Login",
+    "register": "Register",
+    "dashboard": "Dashboard"
+  },
+  "Hero": {
+    "title": "<primary>Transparent</primary> Supply Chain for Indian Agriculture",
+    "subtitle": "AgriClear leverages blockchain technology to create a fair, transparent, and efficient agricultural supply chain ecosystem connecting farmers directly with buyers.",
+    "getStarted": "Get Started",
+    "watchDemo": "Watch Demo",
+    "verified": "Blockchain Verified",
+    "immutable": "Immutable records"
+  },
+  "PublicMarketplace": {
+    "title": "Featured Products",
+    "description": "Explore some of our best-selling products.",
+    "viewAll": "View All Products",
+    "searchPlaceholder": "Search for products...",
+    "filter": "Filter",
+    "addToCart": "Add",
+    "noProductsTitle": "No Products Found",
+    "noProductsDescription": "Check back later for new listings."
+  },
+  "RoleCards": {
+    "title": "For Everyone in the Supply Chain"
+  },
+  "FeatureCards": {
+    "title": "Powerful Features",
+    "description": "AgriClear combines cutting-edge technologies to revolutionize agricultural supply chains"
+  },
+  "Cta": {
+    "title": "Ready to transform agricultural supply chains?",
+    "description": "Join AgriClear today and be part of the movement towards transparency, fairness, and efficiency in Indian agriculture.",
+    "getStarted": "Get Started for Free",
+    "readDocs": "Read Documentation"
+  },
+  "Footer": {
+    "tagline": "Blockchain-powered transparent supply chain platform for Indian agriculture and MSMEs.",
+    "platform": "Platform",
+    "features": "Features",
+    "pricing": "Pricing",
+    "api": "API",
+    "integrations": "Integrations",
+    "resources": "Resources",
+    "documentation": "Documentation",
+    "guides": "Guides",
+    "blog": "Blog",
+    "support": "Support",
+    "company": "Company",
+    "about": "About",
+    "careers": "Careers",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "copyright": "© {year} AgriClear. All rights reserved."
+  }
+}
