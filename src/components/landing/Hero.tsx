@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -56,7 +57,7 @@ const Hero = () => {
             <Button asChild size="lg" className="px-6 py-3 font-medium rounded-lg shadow-md hover:shadow-lg h-auto">
               <Link href="/register">{t('getStarted')}</Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="px-6 py-3 font-medium rounded-lg hover:bg-accent hover:text-accent-foreground dark:border-primary/50 dark:hover:bg-primary/10 dark:hover:text-primary transition h-auto">
+            <Button asChild variant="secondary" size="lg" className="px-6 py-3 font-medium rounded-lg shadow-md hover:shadow-lg h-auto transition">
               <Link href="#">
                 <Play className="w-5 h-5 mr-2" />
                 {t('watchDemo')}
