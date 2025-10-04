@@ -132,8 +132,7 @@ function OrderTable({ orders, firestore }: { orders: any[], firestore: any }) {
                                 <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'processing')}>Accept Order</Button>
                             )}
                              {order.status === 'processing' && (
-                                <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'shipped')}>Mark as Shipped</Button>
-                            )}
+                                <Button size="sm" onClick={() => handleUpdateStatus(order.id, 'shipped')}>Mark as Shipped</Button>                            )}
                         </TableCell>
                     </TableRow>
                 ))}
