@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { useCollection, addDocumentNonBlocking } from "@/firebase";
+import { useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, doc, serverTimestamp, writeBatch, getDoc } from "firebase/firestore";
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
@@ -39,7 +39,7 @@ export default function CheckoutPage() {
 
     useEffect(() => {
         const fetchFarmerWallet = async () => {
-            if (farmerId) {
+            if (farmerId && firestore) {
                 try {
                     const farmerDoc = await getDoc(doc(firestore, 'users', farmerId));
                     if (farmerDoc.exists()) {
@@ -55,7 +55,7 @@ export default function CheckoutPage() {
 
 
     const handlePlaceOrder = async () => {
-        if (!user || !cartItems || cartItems.length === 0 || !walletAddress || !farmerId) {
+        if (!user || !cartItems || cartItems.length === 0 || !walletAddress || !farmerId || !firestore) {
             toast({
                 variant: 'destructive',
                 title: 'Error',
@@ -75,7 +75,7 @@ export default function CheckoutPage() {
 
         setIsPlacingOrder(true);
 
-        let orderRef;
+        let orderId = '';
 
         try {
             // 1. Create Order in Firestore
@@ -95,10 +95,11 @@ export default function CheckoutPage() {
                 created_at: serverTimestamp(),
             };
             
-            orderRef = await addDocumentNonBlocking(collection(firestore, 'orders'), orderData);
+            const orderRef = await addDocumentNonBlocking(collection(firestore, 'orders'), orderData);
             if(!orderRef){
                 throw new Error("Could not create order reference in Firestore.");
             }
+            orderId = orderRef.id;
 
             // 2. Initiate Escrow Payment on Blockchain
             const provider = new ethers.BrowserProvider(window.ethereum);
@@ -106,7 +107,7 @@ export default function CheckoutPage() {
             const escrowContract = getEscrowPaymentContract(signer);
             
             const transaction = await escrowContract.initiateEscrow(
-                orderRef.id,
+                orderId,
                 farmerWalletAddress,
                 { value: ethers.parseEther(subtotal.toString()) }
             );
@@ -118,11 +119,11 @@ export default function CheckoutPage() {
             
             await transaction.wait(); // Wait for the transaction to be mined
 
-            // 3. Update Provenance Chain
+            // 3. Update Provenance Chain for each product
             const provenanceContract = getProductProvenanceContract(signer);
             for (const item of cartItems) {
                 try {
-                    const provTx = await provenanceContract.updateHistory(item.product_id, `Sold to Buyer ${user.uid.slice(0,6)} in Order #${orderRef.id.slice(0,6)}`);
+                    const provTx = await provenanceContract.updateHistory(item.product_id, `Sold to Buyer ${user.uid.slice(0,6)} in Order #${orderId.slice(0,6)}`);
                     await provTx.wait(1); // Wait for 1 confirmation
                 } catch (e) {
                     // This might fail if the product wasn't registered on-chain.
@@ -131,12 +132,12 @@ export default function CheckoutPage() {
                 }
             }
             
-
             // 4. Update Order Status and Clear Cart
             const batch = writeBatch(firestore);
             
             // Update order status to confirmed
-            batch.update(orderRef, { status: 'confirmed' });
+            const firestoreOrderRef = doc(firestore, 'orders', orderId);
+            batch.update(firestoreOrderRef, { status: 'confirmed' });
 
             // Clear the cart
             cartItems.forEach(item => {
@@ -148,7 +149,7 @@ export default function CheckoutPage() {
 
             toast({
                 title: 'Order Placed Successfully!',
-                description: `Your order #${orderRef.id.slice(0,6)} has been confirmed and payment is secured.`,
+                description: `Your order #${orderId.slice(0,6)} has been confirmed and payment is secured.`,
             });
 
             router.push('/buyer/orders');
@@ -156,8 +157,8 @@ export default function CheckoutPage() {
         } catch (error: any) {
             console.error("Failed to place order:", error);
             // If the blockchain transaction fails, we should ideally roll back the Firestore order creation.
-            if (orderRef) {
-                const orderDoc = doc(firestore, 'orders', orderRef.id);
+            if (orderId) {
+                const orderDoc = doc(firestore, 'orders', orderId);
                 // Maybe update status to 'failed' instead of deleting.
                 await writeBatch(firestore).update(orderDoc, { status: 'failed', error: error.reason || error.message }).commit();
             }
@@ -250,3 +251,5 @@ export default function CheckoutPage() {
         </DashboardLayout>
     );
 }
+
+    

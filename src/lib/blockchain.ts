@@ -29,7 +29,7 @@ export const releasePaymentFromEscrow = async (signer: Signer, orderId: string, 
 };
 
 export const getProductHistory = async (productId: string) => {
-    if(!ethers.isAddress(PROVENANCE_CONTRACT_ADDRESS)) {
+    if(!process.env.NEXT_PUBLIC_PROVENANCE_CONTRACT_ADDRESS && !ethers.isAddress(PROVENANCE_CONTRACT_ADDRESS)) {
         console.error("Provenance contract address is not a valid address.");
         return [];
     }
@@ -48,3 +48,4 @@ export const getProductHistory = async (productId: string) => {
     }
 };
 
+    
