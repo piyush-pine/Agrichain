@@ -53,7 +53,8 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // This effect handles redirection after a user logs in OR if they are already logged in.
+    // This effect handles redirection if the user is already authenticated
+    // or after a successful login when their role is fetched.
     if (!loading && user && user.role) {
       mergeLocalCartWithFirestore(user.uid);
       const redirectUrl = localStorage.getItem('redirectAfterLogin') || `/${user.role}/dashboard`;
@@ -71,7 +72,7 @@ export default function LoginPage() {
         values.email,
         values.password
       );
-      // After successful sign-in, the useEffect hook will handle the redirection.
+      // After successful sign-in, the useEffect hook above will handle the redirection.
       toast({
         title: 'Login Successful',
         description: 'Redirecting you to your dashboard...',
@@ -87,9 +88,8 @@ export default function LoginPage() {
     }
   }
 
-  // Show a full-screen loading indicator during the initial auth check.
-  // Or if the user is logged in but we are waiting for the role and redirection.
-  if (loading || user) {
+  // Show a loading indicator ONLY during the initial authentication check.
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div>Loading...</div>
@@ -97,6 +97,9 @@ export default function LoginPage() {
     );
   }
 
+  // If the user is logged in but doesn't have a role yet (data is fetching),
+  // we still show the login form to avoid getting stuck on a loading screen.
+  // The useEffect will catch the role and redirect when it's ready.
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
