@@ -16,6 +16,7 @@ import { getEscrowPaymentContract, getProductProvenanceContract } from '@/lib/bl
 import { ethers } from 'ethers';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useCart } from '@/hooks/use-cart';
+import { Wallet } from 'lucide-react';
 
 export default function CheckoutPage() {
     const { user } = useUser();

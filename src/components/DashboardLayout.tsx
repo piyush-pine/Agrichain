@@ -99,19 +99,23 @@ function UserDropdown() {
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
+            <DropdownMenuContent className="w-60" align="end">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                  {user?.walletAddress && (
-                     <DropdownMenuGroup>
-                        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground px-2">Simulated Wallet</DropdownMenuLabel>
-                        <DropdownMenuItem disabled className="flex flex-col items-start font-mono text-xs">
-                            <span>{user.walletAddress.slice(0, 22)}</span>
-                             <span>{user.walletAddress.slice(22)}</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuGroup>
+                     <>
+                        <DropdownMenuGroup>
+                            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground px-2 flex items-center gap-1">
+                                <Wallet className="h-3 w-3" />
+                                Simulated Wallet
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem disabled className="font-mono text-xs truncate">
+                                {user.walletAddress}
+                            </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        <DropdownMenuSeparator />
+                     </>
                  )}
-                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                     <DropdownMenuItem>
                         <UserIcon className="mr-2 h-4 w-4" />
