@@ -66,7 +66,6 @@ export const UserProvider: React.FC<{
         } catch (error) {
            // Handle error fetching user document, e.g., client is offline.
            // The user is still authenticated, just without their Firestore profile data.
-           console.error("Error fetching user data (might be offline):", error);
            setUserState({ user: { ...user, role: undefined }, loading: false });
         }
       } else {
