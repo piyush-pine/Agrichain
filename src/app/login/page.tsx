@@ -25,7 +25,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/firebase/auth/use-user';
+import { useUser } from '@/firebase/auth/use-user'; // Corrected import
 import { useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
 
@@ -53,6 +53,8 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
+    // This effect handles redirection after a user logs in.
+    // It waits until loading is false and a user with a role is present.
     if (!loading && user && user.role) {
       mergeLocalCartWithFirestore(user.uid);
       const redirectUrl = localStorage.getItem('redirectAfterLogin') || `/${user.role}/dashboard`;
@@ -70,17 +72,24 @@ export default function LoginPage() {
         values.email,
         values.password
       );
-      // Redirection is handled by the useEffect hook
+      // After successful sign-in, the useEffect hook will handle the redirection.
+      toast({
+        title: 'Login Successful',
+        description: 'Redirecting you to your dashboard...',
+      });
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: error.message,
+        description: error.code === 'auth/invalid-credential' 
+          ? 'Invalid email or password. Please try again.'
+          : error.message,
       });
     }
   }
 
-  if (loading) {
+  // Prevents showing the login form flashes while redirecting a logged-in user
+  if (loading || user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div>Loading...</div>
