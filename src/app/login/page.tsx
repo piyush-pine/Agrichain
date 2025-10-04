@@ -89,7 +89,6 @@ export default function LoginPage() {
   }
 
   // Only show the full-screen loading indicator during the initial auth check.
-  // Once loading is false, we let the useEffect handle redirection for logged-in users.
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
