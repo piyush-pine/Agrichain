@@ -11,6 +11,10 @@
           "type": "string",
           "description": "User's full name."
         },
+        "companyName": {
+          "type": "string",
+          "description": "The user's farm or company name."
+        },
         "email": {
           "type": "string",
           "description": "User's email address.",

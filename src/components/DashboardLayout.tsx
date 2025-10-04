@@ -61,6 +61,8 @@ const navItems = {
   logistics: [
     { href: '/logistics/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/logistics/shipments', icon: Truck, label: 'Shipments' },
+    { href: '/logistics/history', icon: Package, label: 'History' },
+    { href: '/logistics/route-planner', icon: Map, label: 'Route Planner' },
   ],
 };
 
@@ -131,9 +133,11 @@ function UserDropdown() {
                      </>
                  )}
                 <DropdownMenuGroup>
-                    <DropdownMenuItem>
-                        <UserIcon className="mr-2 h-4 w-4" />
-                        <span>Profile</span>
+                    <DropdownMenuItem asChild>
+                        <Link href="/profile">
+                            <UserIcon className="mr-2 h-4 w-4" />
+                            <span>Profile</span>
+                        </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem>
                         <Settings className="mr-2 h-4 w-4" />
@@ -160,11 +164,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     // This effect handles redirecting unauthenticated users.
     if (!loading && !user) {
+      localStorage.setItem('redirectAfterLogin', pathname);
       router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, pathname]);
   
   const currentNav = role ? navItems[role] : [];
+
+  // Render the layout shell with skeletons while user/role is loading
+  const isLoading = loading || !role;
   
   return (
     <SidebarProvider>
@@ -190,7 +198,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </Link>
               </SidebarMenuItem>
               
-              {loading && !role ? (
+              {isLoading ? (
                   <div className="flex flex-col gap-2 p-2">
                     <Skeleton className="h-8 w-full" />
                     <Skeleton className="h-8 w-full" />
@@ -227,12 +235,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <span className="sr-only">Notifications</span>
                 </Button>
 
-                <CartSheet />
+                {role === 'buyer' && <CartSheet />}
 
                 <UserDropdown />
             </div>
           </header>
-          <main className="flex-1 p-4 sm:p-6">{children}</main>
+          <main className="flex-1 p-4 sm:p-6">
+            {isLoading ? <div className="w-full h-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : children}
+          </main>
         </SidebarInset>
     </SidebarProvider>
   );
