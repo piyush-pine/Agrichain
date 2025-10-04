@@ -53,8 +53,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // This effect handles redirection after a user logs in.
-    // It waits until loading is false and a user with a role is present.
+    // This effect handles redirection after a user logs in OR if they are already logged in.
     if (!loading && user && user.role) {
       mergeLocalCartWithFirestore(user.uid);
       const redirectUrl = localStorage.getItem('redirectAfterLogin') || `/${user.role}/dashboard`;
@@ -88,8 +87,9 @@ export default function LoginPage() {
     }
   }
 
-  // Only show the full-screen loading indicator during the initial auth check.
-  if (loading) {
+  // Show a full-screen loading indicator during the initial auth check.
+  // Or if the user is logged in but we are waiting for the role and redirection.
+  if (loading || user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div>Loading...</div>
