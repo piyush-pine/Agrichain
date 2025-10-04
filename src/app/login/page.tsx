@@ -25,7 +25,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/firebase/auth/use-user'; // Corrected import
+import { useUser } from '@/firebase/auth/use-user';
 import { useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
 
@@ -88,8 +88,9 @@ export default function LoginPage() {
     }
   }
 
-  // Prevents showing the login form flashes while redirecting a logged-in user
-  if (loading || user) {
+  // Only show the full-screen loading indicator during the initial auth check.
+  // Once loading is false, we let the useEffect handle redirection for logged-in users.
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div>Loading...</div>
@@ -130,7 +131,7 @@ export default function LoginPage() {
                       <Input type="password" placeholder="••••••••" {...field} />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
+                  </Item>
                 )}
               />
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
