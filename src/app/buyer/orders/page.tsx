@@ -26,6 +26,7 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
   confirmed: "default",
   paid: "success",
   processing: "secondary",
+  failed: "destructive",
 };
 
 export default function BuyerOrdersPage() {
@@ -33,6 +34,8 @@ export default function BuyerOrdersPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [selectedProduct, setSelectedProduct] = useState<{ id: string, name: string } | null>(null);
+  const [isConfirming, setIsConfirming] = useState<string | null>(null);
+
 
   const ordersQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -55,23 +58,26 @@ export default function BuyerOrdersPage() {
         return;
     }
 
+    setIsConfirming(order.id);
+
     try {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
 
         toast({ title: 'Confirming Delivery...', description: 'Please approve the transaction in MetaMask to release payment.' });
         
-        const tx = await releasePaymentFromEscrow(signer, order.id, order.farmer_wallet_address);
+        const tx = await releasePaymentFromEscrow(signer, order.id);
         
         toast({ title: 'Processing Blockchain Transaction', description: `Waiting for confirmation... Tx: ${tx.hash.slice(0,10)}...` });
         await tx.wait();
 
         const orderRef = doc(firestore, 'orders', order.id);
-        updateDocumentNonBlocking(orderRef, { status: 'delivered' });
+        updateDocumentNonBlocking(orderRef, { status: 'delivered', escrow_released: true });
         
+        // This could be a separate process, but for now we'll mark as paid shortly after.
         setTimeout(() => {
-             updateDocumentNonBlocking(orderRef, { status: 'paid', escrow_released: true });
-        }, 1000); 
+             updateDocumentNonBlocking(orderRef, { status: 'paid' });
+        }, 2000); 
 
         toast({
             variant: 'success',
@@ -86,6 +92,8 @@ export default function BuyerOrdersPage() {
             title: 'Transaction Failed',
             description: error.reason || error.message || 'Could not release payment.',
         });
+    } finally {
+        setIsConfirming(null);
     }
   };
 
@@ -149,8 +157,12 @@ export default function BuyerOrdersPage() {
                                   <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
                                   <TableCell className="text-center">
                                     {order.status === 'shipped' && (
-                                        <Button size="sm" onClick={() => handleConfirmDelivery(order)}>
-                                            Confirm Delivery
+                                        <Button 
+                                            size="sm" 
+                                            onClick={() => handleConfirmDelivery(order)}
+                                            disabled={isConfirming === order.id}
+                                        >
+                                            {isConfirming === order.id ? 'Confirming...' : 'Confirm Delivery'}
                                         </Button>
                                     )}
                                   </TableCell>
@@ -180,3 +192,4 @@ export default function BuyerOrdersPage() {
     </DashboardLayout>
   );
 }
+

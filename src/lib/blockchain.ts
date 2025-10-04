@@ -17,15 +17,11 @@ export const getProductProvenanceContract = (signerOrProvider: Signer | ethers.P
     return new ethers.Contract(PROVENANCE_CONTRACT_ADDRESS, ProductProvenance.abi, signerOrProvider);
 };
 
-export const releasePaymentFromEscrow = async (signer: Signer, orderId: string, sellerAddress: string) => {
+export const releasePaymentFromEscrow = async (signer: Signer, orderId: string) => {
     const contract = getEscrowPaymentContract(signer);
-    // First, the buyer confirms they have received the delivery
-    const confirmTx = await contract.confirmDelivery(orderId);
-    await confirmTx.wait(); // Wait for confirmation to be mined
-
-    // Second, after delivery is confirmed, release the payment
-    const releaseTx = await contract.releasePayment(orderId);
-    return releaseTx;
+    // The buyer confirms they have received the delivery, which also triggers the payment release
+    const tx = await contract.confirmDelivery(orderId);
+    return tx;
 };
 
 export const getProductHistory = async (productId: string) => {

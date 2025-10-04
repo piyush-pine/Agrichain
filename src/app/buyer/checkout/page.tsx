@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, doc, serverTimestamp, writeBatch, getDoc } from "firebase/firestore";
+import { useCollection } from "@/firebase";
+import { addDoc, collection, doc, serverTimestamp, writeBatch, getDoc } from "firebase/firestore";
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,8 @@ import { useRouter } from 'next/navigation';
 import { ConnectWalletButton } from '@/components/blockchain/ConnectWalletButton';
 import { getEscrowPaymentContract, getProductProvenanceContract } from '@/lib/blockchain';
 import { ethers } from 'ethers';
+import { setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+
 
 export default function CheckoutPage() {
     const { user } = useUser();
@@ -95,10 +97,7 @@ export default function CheckoutPage() {
                 created_at: serverTimestamp(),
             };
             
-            const orderRef = await addDocumentNonBlocking(collection(firestore, 'orders'), orderData);
-            if(!orderRef){
-                throw new Error("Could not create order reference in Firestore.");
-            }
+            const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
             orderId = orderRef.id;
 
             // 2. Initiate Escrow Payment on Blockchain
@@ -133,20 +132,15 @@ export default function CheckoutPage() {
             }
             
             // 4. Update Order Status and Clear Cart
-            const batch = writeBatch(firestore);
-            
-            // Update order status to confirmed
             const firestoreOrderRef = doc(firestore, 'orders', orderId);
-            batch.update(firestoreOrderRef, { status: 'confirmed' });
+            updateDocumentNonBlocking(firestoreOrderRef, { status: 'confirmed' });
 
             // Clear the cart
             cartItems.forEach(item => {
                 const cartItemRef = doc(firestore, 'users', user.uid, 'cart', item.id);
-                batch.delete(cartItemRef);
+                deleteDocumentNonBlocking(cartItemRef);
             });
             
-            await batch.commit();
-
             toast({
                 title: 'Order Placed Successfully!',
                 description: `Your order #${orderId.slice(0,6)} has been confirmed and payment is secured.`,
@@ -160,7 +154,7 @@ export default function CheckoutPage() {
             if (orderId) {
                 const orderDoc = doc(firestore, 'orders', orderId);
                 // Maybe update status to 'failed' instead of deleting.
-                await writeBatch(firestore).update(orderDoc, { status: 'failed', error: error.reason || error.message }).commit();
+                 updateDocumentNonBlocking(orderDoc, { status: 'failed', error: error.reason || error.message });
             }
 
             toast({
