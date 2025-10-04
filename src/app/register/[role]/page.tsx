@@ -1,3 +1,4 @@
+
 'use client';
 import React from 'react';
 import {
@@ -27,7 +28,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
@@ -85,7 +86,10 @@ export default function RegisterRolePage({
         name: values.name,
         email: values.email,
         role: roleId,
-        createdAt: new Date(),
+        created_at: serverTimestamp(),
+        verified: false,
+        aadhaar_verified: false,
+        walletAddress: null, // Initialize wallet address
       });
 
       toast({

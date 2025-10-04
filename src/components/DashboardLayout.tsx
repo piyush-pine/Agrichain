@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +36,13 @@ import { getAuth, signOut } from 'firebase/auth';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { CartSheet } from './cart/CartSheet';
+import { ConnectWalletButton } from './blockchain/ConnectWalletButton';
+import { useFirestore } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Wallet } from 'lucide-react';
 
 const navItems = {
   admin: [
@@ -126,6 +133,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useUser();
   const router = useRouter();
+  const firestore = useFirestore();
+  const { toast } = useToast();
 
   const role = user?.role as keyof typeof navItems | undefined;
 
@@ -134,6 +143,30 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       router.push('/login');
     }
   }, [user, loading, router]);
+  
+  const handleWalletConnect = (address: string | null) => {
+    if (user && address) {
+        const userRef = doc(firestore, 'users', user.uid);
+        setDocumentNonBlocking(userRef, { walletAddress: address }, { merge: true });
+        toast({
+            title: 'Wallet Connected',
+            description: `Your wallet (${address.slice(0, 6)}...${address.slice(-4)}) has been linked to your profile.`,
+        });
+    }
+  };
+
+  const WalletPrompt = () => (
+    <Alert className="mt-4 bg-secondary">
+      <Wallet className="h-4 w-4" />
+      <AlertTitle>Connect Your Wallet</AlertTitle>
+      <AlertDescription>
+        Please connect your crypto wallet to interact with the blockchain features. This is required to list products and receive payments.
+        <div className="mt-4">
+          <ConnectWalletButton onAddressChanged={handleWalletConnect} />
+        </div>
+      </AlertDescription>
+    </Alert>
+  );
 
 
   if (loading) {
@@ -147,6 +180,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
   
   const currentNav = navItems[role] || [];
+  const showWalletPrompt = role === 'farmer' && !user.walletAddress;
   
   return (
     <SidebarProvider>
@@ -175,6 +209,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
+            {showWalletPrompt && (
+                <div className="p-2 group-data-[collapsible=icon]:hidden">
+                    <WalletPrompt />
+                </div>
+            )}
           </SidebarContent>
         </Sidebar>
 

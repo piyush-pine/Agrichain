@@ -19,6 +19,8 @@ import { collection, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import Image from 'next/image';
+import { getProductProvenanceContract } from '@/lib/blockchain';
+import { ethers } from 'ethers';
 
 const productSchema = z.object({
   name: z.string().min(3, 'Product name must be at least 3 characters'),
@@ -55,33 +57,60 @@ export default function NewProductPage() {
             return;
         }
 
-        try {
-            // For now, we are not handling image uploads to a storage service.
-            // We are excluding the 'image' field from the data sent to Firestore.
-            const { image, ...restOfValues } = values;
+        if (!user.walletAddress) {
+            toast({
+                variant: 'destructive',
+                title: 'Wallet Not Connected',
+                description: 'Please connect your wallet on the dashboard before adding a product.',
+            });
+            return;
+        }
 
+        try {
+            // Step 1: Add product data to Firestore
+            const { image, ...restOfValues } = values;
             const productData = {
                 ...restOfValues,
                 farmer_id: user.uid,
                 status: 'Listed',
                 created_at: serverTimestamp(),
-                // In a real app, you would handle image upload here and store the URL
                 quality_cert: '',
                 iot_data: {}
             };
             
-            await addDocumentNonBlocking(collection(firestore, 'products'), productData);
+            const productRef = await addDocumentNonBlocking(collection(firestore, 'products'), productData);
+            
+            toast({
+                title: 'Product Added to Firestore!',
+                description: `${values.name} has been listed. Now registering on blockchain...`,
+            });
+            
+            // Step 2: Register product on the blockchain
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            const provenanceContract = getProductProvenanceContract(signer);
+
+            const tx = await provenanceContract.registerProduct(values.name, values.category);
+            toast({
+                title: 'Processing Blockchain Transaction',
+                description: `Waiting for confirmation... Tx: ${tx.hash.slice(0, 10)}...`,
+            });
+
+            await tx.wait();
 
             toast({
-                title: 'Product Added!',
-                description: `${values.name} has been listed on the marketplace.`,
+                variant: 'success',
+                title: 'Product Registered on Blockchain!',
+                description: `${values.name} is now immutably recorded.`,
             });
+            
             router.push('/farmer/products');
+
         } catch (error: any) {
             toast({
                 variant: 'destructive',
                 title: 'Uh oh! Something went wrong.',
-                description: error.message || 'Could not add the product.',
+                description: error.reason || error.message || 'Could not add the product.',
             });
         }
     };
@@ -209,7 +238,7 @@ export default function NewProductPage() {
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
                 <Button type="submit" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? 'Adding Product...' : 'Add Product'}
+                    {form.formState.isSubmitting ? 'Listing Product...' : 'Add Product'}
                 </Button>
               </div>
             </form>
