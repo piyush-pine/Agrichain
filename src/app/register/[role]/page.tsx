@@ -31,6 +31,7 @@ import {
 import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { ethers } from 'ethers';
+import { setDocumentNonBlocking } from '@/firebase';
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -91,7 +92,7 @@ export default function RegisterRolePage({
       
       // IMPORTANT: Do not await this. Let it run in the background.
       // This makes the UI feel instant. The useUser hook will pick up the role when ready.
-      setDoc(doc(db, 'users', user.uid), {
+      setDocumentNonBlocking(doc(db, 'users', user.uid), {
         uid: user.uid,
         name: values.name,
         email: values.email,
@@ -101,7 +102,7 @@ export default function RegisterRolePage({
         aadhaar_verified: false,
         disabled: false,
         walletAddress: mockWalletAddress, // Assign simulated wallet address
-      });
+      }, { merge: false });
 
       toast({
         title: 'Registration successful!',
