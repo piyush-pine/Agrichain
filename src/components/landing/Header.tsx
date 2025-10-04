@@ -74,7 +74,7 @@ const Header = () => {
                  </Button>
               ) : (
                 <>
-                    <Button variant="outline" asChild>
+                    <Button variant="secondary" asChild>
                         <Link href="/login">Login</Link>
                     </Button>
                     <Button asChild>
