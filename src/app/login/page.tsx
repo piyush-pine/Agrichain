@@ -28,7 +28,7 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
-import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
@@ -68,21 +68,37 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const auth = getAuth();
-    // This is now a non-blocking call. We let the onAuthStateChanged listener handle the result.
-    initiateEmailSignIn(
-      auth,
-      values.email,
-      values.password
-    );
-
-    // Provide immediate feedback to the user.
+    
     toast({
         title: 'Attempting Login...',
         description: 'You will be redirected shortly.',
     });
 
-    // We no longer use a try/catch here because errors will be handled globally
-    // or by onAuthStateChanged, and we want the UI to remain responsive.
+    try {
+      // We await here to catch errors, but the onAuthStateChanged listener handles the redirect.
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      // Let the useEffect handle the redirect.
+    } catch (error: any) {
+        let errorMessage = 'An unexpected error occurred.';
+        // Handle Firebase specific auth errors
+        switch (error.code) {
+            case 'auth/user-not-found':
+            case 'auth/wrong-password':
+            case 'auth/invalid-credential':
+                errorMessage = 'Invalid email or password. Please try again.';
+                break;
+            case 'auth/too-many-requests':
+                errorMessage = 'Too many login attempts. Please try again later.';
+                break;
+        }
+        
+        toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: errorMessage,
+        });
+        // The form state (isSubmitting) is automatically handled by react-hook-form
+    }
   }
   
   // Show a loading state if we're in the middle of an auth state change or redirect.
