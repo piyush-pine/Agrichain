@@ -44,6 +44,8 @@ import { Skeleton } from './ui/skeleton';
 import { useFirestore } from '@/firebase/provider';
 import { ensureUserWallet } from '@/lib/wallet-utils';
 import { ThemeToggle } from './ThemeToggle';
+import { UserProvider } from '@/firebase/auth/use-user';
+
 
 const navItems = {
   admin: [
@@ -158,7 +160,7 @@ function UserDropdown() {
     )
 }
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useUser();
   const router = useRouter();
@@ -261,4 +263,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </SidebarInset>
     </SidebarProvider>
   );
+}
+
+export function DashboardLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <UserProvider>
+            <DashboardLayoutContent>{children}</DashboardLayoutContent>
+        </UserProvider>
+    )
 }

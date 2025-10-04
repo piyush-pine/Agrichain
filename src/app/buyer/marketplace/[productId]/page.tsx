@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
 import { useDoc } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import Image from 'next/image';
 import { ShoppingCart, Leaf, User as UserIcon, ChevronsRight } from 'lucide-react';
 import { getProductHistory } from '@/lib/blockchain';
@@ -18,6 +18,8 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useCart } from '@/hooks/use-cart';
 import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { UserProvider } from '@/firebase/auth/use-user';
 
 function ProductDetailContent({ params }: { params: { productId: string } }) {
     const firestore = useFirestore();
@@ -189,7 +191,7 @@ const ProductDetailSkeleton = () => (
                         <Skeleton className="h-6 w-24" />
                         <Skeleton className="h-10 w-3/4" />
                     </div>
-                </CardHeader>
+                </Header>
                 <CardContent>
                     <div className="space-y-2">
                         <Skeleton className="h-4 w-full" />
@@ -234,16 +236,19 @@ const ProductDetailSkeleton = () => (
 export default function ProductDetailPage({ params }: { params: { productId: string } }) {
     const { user, loading } = useUser();
 
-    // While determining if user is logged in, show skeleton
-    if (loading) {
+    if (loading && !user) {
          return (
-            <div className="relative z-10 min-h-screen flex flex-col bg-background">
-                <Header />
-                <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-                   <ProductDetailSkeleton />
-                </main>
-                <Footer />
-            </div>
+            <FirebaseClientProvider>
+                <UserProvider>
+                    <div className="relative z-10 min-h-screen flex flex-col bg-background">
+                        <Header />
+                        <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+                           <ProductDetailSkeleton />
+                        </main>
+                        <Footer />
+                    </div>
+                </UserProvider>
+            </FirebaseClientProvider>
         );
     }
 
@@ -256,12 +261,16 @@ export default function ProductDetailPage({ params }: { params: { productId: str
     }
     
     return (
-        <div className="relative z-10 min-h-screen flex flex-col bg-background">
-            <Header />
-            <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-               <ProductDetailContent params={params} />
-            </main>
-            <Footer />
-        </div>
+        <FirebaseClientProvider>
+            <UserProvider>
+                <div className="relative z-10 min-h-screen flex flex-col bg-background">
+                    <Header />
+                    <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+                       <ProductDetailContent params={params} />
+                    </main>
+                    <Footer />
+                </div>
+            </UserProvider>
+        </FirebaseClientProvider>
     )
 }
