@@ -31,6 +31,7 @@ import {
   Award,
   Home,
   Wallet,
+  ShieldAlert,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getAuth, signOut } from 'firebase/auth';
@@ -42,6 +43,7 @@ const navItems = {
   admin: [
     { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/admin/users', icon: Users, label: 'User Management' },
+    { href: '/admin/fraud-alerts', icon: ShieldAlert, label: 'Fraud Alerts' },
   ],
   buyer: [
     { href: '/buyer/dashboard', icon: LayoutDashboard, label: 'Dashboard' },

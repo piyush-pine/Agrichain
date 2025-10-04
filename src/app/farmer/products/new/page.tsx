@@ -14,12 +14,13 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase/provider';
-import { collection, serverTimestamp, setDoc, doc } from 'firebase/firestore';
+import { collection, serverTimestamp, setDoc, doc, addDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import Image from 'next/image';
 import { getProductProvenanceContract } from '@/lib/blockchain';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { addDocumentNonBlocking } from '@/firebase';
 
 const productSchema = z.object({
   name: z.string().min(3, 'Product name must be at least 3 characters'),
@@ -49,7 +50,7 @@ export default function NewProductPage() {
 
     const onSubmit = async (values: z.infer<typeof productSchema>) => {
         setIsSubmitting(true);
-        if (!user) {
+        if (!user || !firestore) {
             toast({
                 variant: 'destructive',
                 title: 'Authentication Error',
@@ -100,8 +101,8 @@ export default function NewProductPage() {
 
             await tx.wait();
 
-            // Step 4: Update the product in Firestore with all data
-             toast({ title: 'Finalizing...', description: 'Saving all product details.' });
+            // Step 4: Finalize the product in Firestore
+            toast({ title: 'Finalizing...', description: 'Saving all product details.' });
             const productData = {
                 id: productId,
                 name: values.name,
@@ -115,8 +116,24 @@ export default function NewProductPage() {
                 quality_cert: '',
                 iot_data: {}
             };
-            
             await setDoc(newDocRef, productData);
+            
+            // Step 5: (SIMULATED AI) Check for price spike fraud
+            if (values.price > 1000) {
+                const fraudAlertsCollection = collection(firestore, 'fraud_alerts');
+                addDocumentNonBlocking(fraudAlertsCollection, {
+                    transaction_id: productId,
+                    type: 'price-spike',
+                    confidence: 0.95,
+                    resolved: false,
+                    detected_at: serverTimestamp(),
+                    details: `Product '${values.name}' listed at unusually high price of $${values.price}.`,
+                });
+                toast({
+                    title: 'Heads Up!',
+                    description: 'This product has been flagged for a pricing review due to its high value.',
+                });
+            }
             
             toast({
                 variant: 'success',
@@ -127,7 +144,7 @@ export default function NewProductPage() {
             router.push('/farmer/products');
 
         } catch (error: any) {
-            // If something fails, we may need to clean up the created doc if it exists
+            // If something fails, we may need to clean up
             toast({
                 variant: 'destructive',
                 title: 'Uh oh! Something went wrong.',
