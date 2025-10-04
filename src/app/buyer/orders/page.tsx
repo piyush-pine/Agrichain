@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -13,8 +13,11 @@ import { collection, query, where, orderBy, doc } from "firebase/firestore";
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { getEscrowPaymentContract, releasePaymentFromEscrow } from '@/lib/blockchain';
+import { releasePaymentFromEscrow } from '@/lib/blockchain';
 import { ethers } from 'ethers';
+import { QrCode, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import QRCode from 'react-qr-code';
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
   shipped: "default",
@@ -29,6 +32,7 @@ export default function BuyerOrdersPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [selectedProduct, setSelectedProduct] = useState<{ id: string, name: string } | null>(null);
 
   const ordersQuery = useMemoFirebase(() => {
     if (!user) return null;
@@ -62,15 +66,12 @@ export default function BuyerOrdersPage() {
         toast({ title: 'Processing Blockchain Transaction', description: `Waiting for confirmation... Tx: ${tx.hash.slice(0,10)}...` });
         await tx.wait();
 
-        // Update Firestore document
         const orderRef = doc(firestore, 'orders', order.id);
         updateDocumentNonBlocking(orderRef, { status: 'delivered' });
         
-        // We can add another step to confirm payment on-chain and then mark as 'paid'
-        // For now, we'll assume it's paid after release
         setTimeout(() => {
              updateDocumentNonBlocking(orderRef, { status: 'paid', escrow_released: true });
-        }, 1000); // give a second for the 'delivered' state to be seen
+        }, 1000); 
 
         toast({
             variant: 'success',
@@ -88,6 +89,13 @@ export default function BuyerOrdersPage() {
     }
   };
 
+  const getProductUrl = (productId: string) => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/products/${productId}`;
+    }
+    return '';
+  };
+
   return (
     <DashboardLayout>
       <div className="flex items-center justify-between mb-6">
@@ -99,48 +107,74 @@ export default function BuyerOrdersPage() {
             <CardDescription>Here's a list of all your purchases on AgriClear.</CardDescription>
         </CardHeader>
         <CardContent>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Order ID</TableHead>
-                        <TableHead>Items</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead className="text-center">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center">Loading orders...</TableCell>
-                      </TableRow>
-                    ) : orders && orders.length > 0 ? (
-                      orders.map((order) => (
-                          <TableRow key={order.id}>
-                              <TableCell className="font-medium">#{order.id.slice(0, 6)}...</TableCell>
-                              <TableCell>{order.items.map((i:any) => i.product_name).join(', ')}</TableCell>
-                              <TableCell>{order.created_at ? new Date(order.created_at.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
-                              <TableCell>
-                                  <Badge variant={statusVariant[order.status.toLowerCase()] || "default"}>{order.status}</Badge>
-                              </TableCell>
-                              <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
-                              <TableCell className="text-center">
-                                {order.status === 'shipped' && (
-                                    <Button size="sm" onClick={() => handleConfirmDelivery(order)}>
-                                        Confirm Delivery
-                                    </Button>
-                                )}
-                              </TableCell>
+            <Dialog>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Order ID</TableHead>
+                            <TableHead>Items</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            <TableHead className="text-center">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center">Loading orders...</TableCell>
                           </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                          <TableCell colSpan={6} className="text-center">You have no orders yet. <Link href="/buyer/marketplace" className="text-primary underline">Start shopping</Link>.</TableCell>
-                      </TableRow>
-                    )}
-                </TableBody>
-            </Table>
+                        ) : orders && orders.length > 0 ? (
+                          orders.map((order) => (
+                              <TableRow key={order.id}>
+                                  <TableCell className="font-medium">#{order.id.slice(0, 6)}...</TableCell>
+                                  <TableCell>
+                                      <ul className="list-disc list-inside">
+                                        {order.items.map((item: any) => (
+                                          <li key={item.product_id} className="flex items-center gap-2">
+                                            <span>{item.product_name}</span>
+                                             <DialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSelectedProduct({id: item.product_id, name: item.product_name})}>
+                                                    <QrCode className="h-4 w-4 text-muted-foreground" />
+                                                </Button>
+                                            </DialogTrigger>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                  </TableCell>
+                                  <TableCell>{order.created_at ? new Date(order.created_at.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
+                                  <TableCell>
+                                      <Badge variant={statusVariant[order.status.toLowerCase()] || "default"}>{order.status}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
+                                  <TableCell className="text-center">
+                                    {order.status === 'shipped' && (
+                                        <Button size="sm" onClick={() => handleConfirmDelivery(order)}>
+                                            Confirm Delivery
+                                        </Button>
+                                    )}
+                                  </TableCell>
+                              </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                              <TableCell colSpan={6} className="text-center">You have no orders yet. <Link href="/buyer/marketplace" className="text-primary underline">Start shopping</Link>.</TableCell>
+                          </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+                {selectedProduct && (
+                     <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Provenance QR Code for {selectedProduct.name}</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex justify-center p-4 bg-white">
+                            <QRCode value={getProductUrl(selectedProduct.id)} size={256} />
+                        </div>
+                        <p className="text-center text-sm text-muted-foreground">Scan this code to view the product's journey.</p>
+                    </DialogContent>
+                )}
+            </Dialog>
         </CardContent>
       </Card>
     </DashboardLayout>
