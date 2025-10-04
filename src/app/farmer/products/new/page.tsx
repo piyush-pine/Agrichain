@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase/provider';
-import { collection, serverTimestamp, setDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, doc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import Image from 'next/image';
@@ -64,7 +64,7 @@ export default function NewProductPage() {
             toast({
                 variant: 'destructive',
                 title: 'Wallet Not Connected',
-                description: 'A simulated wallet is required. Please re-register if you do not have one.',
+                description: 'Your simulated wallet is being created. Please try again in a few moments.',
             });
             setIsSubmitting(false);
             return;

@@ -41,6 +41,8 @@ import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { CartSheet } from './cart/CartSheet';
 import { Skeleton } from './ui/skeleton';
+import { useFirestore } from '@/firebase';
+import { ensureUserWallet } from '@/lib/wallet-utils';
 
 const navItems = {
   admin: [
@@ -159,6 +161,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useUser();
   const router = useRouter();
+  const firestore = useFirestore();
   
   const role = user?.role as keyof typeof navItems | undefined;
 
@@ -168,7 +171,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       localStorage.setItem('redirectAfterLogin', pathname);
       router.push('/login');
     }
-  }, [user, loading, router, pathname]);
+    // This effect ensures existing users get a wallet if they don't have one.
+    if (!loading && user && !user.walletAddress && firestore) {
+      ensureUserWallet(firestore, user.uid);
+    }
+  }, [user, loading, router, pathname, firestore]);
   
   // This is now only used for the sidebar navigation, not the main content area.
   const isNavLoading = loading || !role;
@@ -240,7 +247,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           <main className="flex-1 p-4 sm:p-6">
-            {children}
+             {loading && !user ? (
+               <div className="w-full h-full flex items-center justify-center">
+                 <Loader2 className="h-8 w-8 animate-spin" />
+               </div>
+             ) : (
+                children
+             )}
           </main>
         </SidebarInset>
     </SidebarProvider>
