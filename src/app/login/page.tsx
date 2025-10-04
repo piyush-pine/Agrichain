@@ -74,7 +74,7 @@ export default function LoginPage() {
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
+        title: 'Login Failed',
         description: error.message,
       });
     }

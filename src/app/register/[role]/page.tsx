@@ -94,6 +94,7 @@ export default function RegisterRolePage({
         created_at: serverTimestamp(),
         verified: roleId === 'admin', // Admins are auto-verified
         aadhaar_verified: false,
+        disabled: false,
         walletAddress: mockWalletAddress, // Assign simulated wallet address
       });
 
@@ -106,7 +107,7 @@ export default function RegisterRolePage({
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
+        title: 'Registration Failed',
         description: error.message,
       });
     }
@@ -161,8 +162,8 @@ export default function RegisterRolePage({
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full">
-                Register
+              <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Registering...' : 'Register'}
               </Button>
             </form>
           </Form>
