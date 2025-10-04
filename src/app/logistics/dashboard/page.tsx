@@ -69,8 +69,8 @@ export default function LogisticsDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">You've completed <strong>28</strong> deliveries this month.</p>
-            <Button asChild variant="secondary" className="w-full" disabled>
-                <Link href="#">View History</Link>
+            <Button asChild variant="secondary" className="w-full">
+                <Link href="/logistics/history">View History</Link>
             </Button>
           </CardContent>
         </Card>
