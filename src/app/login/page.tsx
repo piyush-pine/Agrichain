@@ -88,17 +88,8 @@ export default function LoginPage() {
     }
   }
 
-  // If the user is already authenticated and we're just waiting for the role,
-  // we can show a minimal loading state or nothing to avoid showing the form again.
-  if (loading || (user && !user.role)) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div>Loading...</div>
-      </div>
-    );
-  }
-
-  // The form is shown if the user is not logged in.
+  // The form is always shown if the user is not yet redirected.
+  // The useEffect handles the redirection logic in the background.
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
