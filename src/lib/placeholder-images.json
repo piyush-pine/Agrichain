@@ -9,8 +9,8 @@
     {
       "id": "dashboard-preview",
       "description": "Preview of the AgriChain dashboard showing agricultural data",
-      "imageUrl": "https://images.unsplash.com/photo-1492496913980-501348b61469?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxhZ3JpY3VsdHVyZSUyMGZpZWxkfGVufDB8fHx8MTcxNzg4NjA0N3ww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "agriculture farm"
+      "imageUrl": "https://images.unsplash.com/photo-1617953141905-cde7260c1374?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHx0ZWNobm9sb2d5JTIwYWdyaWN1bHR1cmV8ZW58MHx8fHwxNzE3ODg2MzMxfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "technology agriculture"
     }
   ]
 }
