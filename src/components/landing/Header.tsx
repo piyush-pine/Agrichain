@@ -9,6 +9,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/firebase/auth/use-user';
 import { CartSheet } from '../cart/CartSheet';
+import { ThemeToggle } from '../ThemeToggle';
 
 declare global {
     interface Window {
@@ -33,7 +34,7 @@ const Header = () => {
   }, []);
 
   return (
-    <nav className="bg-white bg-opacity-90 backdrop-filter backdrop-blur-lg shadow-sm sticky top-0 z-50">
+    <nav className="bg-background/90 backdrop-filter backdrop-blur-lg shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
@@ -47,27 +48,28 @@ const Header = () => {
                   data-ai-hint={logo.imageHint}
                 />
               )}
-              <span className="text-xl font-bold text-green-600">AgriClear</span>
+              <span className="text-xl font-bold text-primary">AgriClear</span>
             </Link>
           </div>
           <div className="hidden md:flex items-center space-x-4">
-            <div className="language-selector flex items-center space-x-2 bg-gray-100 px-3 py-1 rounded-full cursor-pointer transition-transform hover:scale-105">
-              <span className="text-sm text-gray-600">EN</span>
-              <ChevronDown className="w-4 h-4 text-gray-500" />
+            <div className="language-selector flex items-center space-x-2 bg-muted px-3 py-1 rounded-full cursor-pointer transition-transform hover:scale-105">
+              <span className="text-sm text-muted-foreground">EN</span>
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
             </div>
-            <Link href="/buyer/marketplace" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-green-600">
+            <Link href="/buyer/marketplace" className="px-3 py-2 text-sm font-medium text-foreground hover:text-primary">
               Marketplace
             </Link>
-            <Link href="#features" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-green-600">
+            <Link href="#features" className="px-3 py-2 text-sm font-medium text-foreground hover:text-primary">
               Features
             </Link>
-            <Link href="#about" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-green-600">
+            <Link href="#about" className="px-3 py-2 text-sm font-medium text-foreground hover:text-primary">
               About
             </Link>
             <div className="ml-4 flex items-center space-x-2">
+              <ThemeToggle />
               <CartSheet />
               {user ? (
-                 <Button asChild className="bg-green-600 text-white hover:bg-green-700">
+                 <Button asChild>
                     <Link href={`/${user.role}/dashboard`}>Dashboard</Link>
                  </Button>
               ) : (
@@ -75,7 +77,7 @@ const Header = () => {
                     <Button variant="ghost" asChild>
                         <Link href="/login">Login</Link>
                     </Button>
-                    <Button asChild className="bg-green-600 text-white hover:bg-green-700">
+                    <Button asChild>
                         <Link href="/register">Register</Link>
                     </Button>
                 </>

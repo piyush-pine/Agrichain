@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -43,6 +43,7 @@ import { CartSheet } from './cart/CartSheet';
 import { Skeleton } from './ui/skeleton';
 import { useFirestore } from '@/firebase/provider';
 import { ensureUserWallet } from '@/lib/wallet-utils';
+import { ThemeToggle } from './ThemeToggle';
 
 const navItems = {
   admin: [
@@ -166,24 +167,26 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const role = user?.role as keyof typeof navItems | undefined;
   const isNavLoading = loading || !role;
 
-  React.useEffect(() => {
-    // This effect handles redirection. It does not block rendering.
-    // If the user state is finished loading and there is no user, redirect to login.
+  useEffect(() => {
     if (!loading && !user) {
       localStorage.setItem('redirectAfterLogin', pathname);
       router.push('/login');
     }
   }, [user, loading, router, pathname]);
   
-  React.useEffect(() => {
-    // Asynchronously ensure wallet exists without blocking UI
+  useEffect(() => {
     if (!loading && user && !user.walletAddress && firestore) {
       ensureUserWallet(firestore, user.uid).catch(console.error);
     }
   }, [user, loading, firestore]);
   
-  // Do NOT block rendering here. Let the page content render immediately.
-  // The useEffect hook above will handle redirection if necessary.
+  if (loading && !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
   
   return (
     <SidebarProvider>
@@ -240,7 +243,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <SidebarTrigger className="md:hidden" />
                 <h1 className="text-lg font-semibold md:text-xl capitalize">{pathname.split('/').pop()?.replace('-', ' ') || 'Dashboard'}</h1>
             </div>
-            <div className='flex items-center gap-4'>
+            <div className='flex items-center gap-2'>
+                <ThemeToggle />
                 <Button variant="ghost" size="icon">
                     <Bell className="h-5 w-5" />
                     <span className="sr-only">Notifications</span>
