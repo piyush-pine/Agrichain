@@ -14,13 +14,13 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase/provider';
-import { collection, serverTimestamp, setDoc, doc, addDoc } from 'firebase/firestore';
+import { collection, serverTimestamp, setDoc, doc, updateDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import Image from 'next/image';
 import { getProductProvenanceContract } from '@/lib/blockchain';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { addDocumentNonBlocking } from '@/firebase';
+import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 
 const productSchema = z.object({
   name: z.string().min(3, 'Product name must be at least 3 characters'),
@@ -70,55 +70,57 @@ export default function NewProductPage() {
             return;
         }
 
-        let newDocRef;
-
         try {
-            // Step 1: Add product data to Firestore, get the ID first
+            toast({ title: 'Listing Product...', description: 'Please wait a moment.' });
+            
+            // Step 1: Create a new document reference to get a unique ID
             const productCollection = collection(firestore, 'products');
-            newDocRef = doc(productCollection); // Create a new doc reference with an auto-generated ID
+            const newDocRef = doc(productCollection);
             const productId = newDocRef.id;
 
-            // Step 2: Upload image if it exists
-            let imageUrl = '';
-            if (values.image && values.image.length > 0) {
-                 toast({ title: 'Uploading Image...', description: 'Please wait.' });
-                const file = values.image[0];
-                const storage = getStorage();
-                const storageRef = ref(storage, `products/${productId}/${file.name}`);
-                const snapshot = await uploadBytes(storageRef, file);
-                imageUrl = await getDownloadURL(snapshot.ref);
-            }
-            
-            // Step 3: Register product on the blockchain (SIMULATED)
-            toast({ title: 'Registering on Blockchain (Simulated)...', description: 'This will be instant.' });
-            const provenanceContract = getProductProvenanceContract(null as any); // Signer not needed for mock
-
-            const tx = await provenanceContract.registerProduct(productId, values.name, values.category);
-            toast({
-                title: 'Processing Mock Transaction',
-                description: `Waiting for mock confirmation... Tx: ${tx.hash.slice(0, 10)}...`,
-            });
-
-            await tx.wait();
-
-            // Step 4: Finalize the product in Firestore
-            toast({ title: 'Finalizing...', description: 'Saving all product details.' });
+            // Step 2: Create initial product data (without image URL)
             const productData = {
                 id: productId,
                 name: values.name,
                 description: values.description,
                 category: values.category,
                 price: values.price,
-                image_url: imageUrl,
+                image_url: '', // Start with an empty image URL
                 farmer_id: user.uid,
                 status: 'Listed',
                 created_at: serverTimestamp(),
-                quality_cert: '',
-                iot_data: {}
             };
-            await setDoc(newDocRef, productData);
-            
-            // Step 5: (SIMULATED AI) Check for price spike fraud
+
+            // Step 3: Immediately save the initial document to Firestore (non-blocking)
+            setDocumentNonBlocking(newDocRef, productData, { merge: false });
+
+            // Step 4: Handle image upload in the background (non-blocking)
+            if (values.image && values.image.length > 0) {
+                const file = values.image[0];
+                const storage = getStorage();
+                const storageRef = ref(storage, `products/${productId}/${file.name}`);
+                
+                // Don't await this promise chain
+                uploadBytes(storageRef, file).then(snapshot => {
+                    getDownloadURL(snapshot.ref).then(imageUrl => {
+                        // Once URL is ready, update the document in the background
+                        const docToUpdate = doc(firestore, 'products', productId);
+                        updateDocumentNonBlocking(docToUpdate, { image_url: imageUrl });
+                    });
+                }).catch(err => {
+                    console.error("Image upload failed:", err);
+                    // Optionally show a toast that image upload failed
+                });
+            }
+
+            // Step 5: Simulate fast blockchain registration (non-blocking)
+            const provenanceContract = getProductProvenanceContract(null as any);
+            provenanceContract.registerProduct(productId, values.name, values.category).then(tx => {
+                console.log(`[MOCK] Blockchain tx submitted: ${tx.hash}`);
+                // We don't await tx.wait() to keep the UI fast
+            });
+
+            // Step 6: (SIMULATED AI) Check for fraud non-blockingly
             if (values.price > 1000) {
                 const fraudAlertsCollection = collection(firestore, 'fraud_alerts');
                 addDocumentNonBlocking(fraudAlertsCollection, {
@@ -129,30 +131,26 @@ export default function NewProductPage() {
                     detected_at: serverTimestamp(),
                     details: `Product '${values.name}' listed at unusually high price of $${values.price}.`,
                 });
-                toast({
-                    title: 'Heads Up!',
-                    description: 'This product has been flagged for a pricing review due to its high value.',
-                });
             }
             
+            // Step 7: Give immediate success feedback and redirect
             toast({
                 variant: 'success',
-                title: 'Product Listed Successfully!',
-                description: `${values.name} is now on the marketplace and registered on the mock blockchain.`,
+                title: 'Product Listed!',
+                description: `${values.name} is now on the marketplace.`,
             });
             
             router.push('/farmer/products');
 
         } catch (error: any) {
-            // If something fails, we may need to clean up
+            setIsSubmitting(false); // Only set to false on catch
             toast({
                 variant: 'destructive',
                 title: 'Uh oh! Something went wrong.',
                 description: error.reason || error.message || 'Could not add the product.',
             });
-        } finally {
-            setIsSubmitting(false);
         }
+        // Don't set isSubmitting to false in a `finally` block because we redirect on success.
     };
     
     const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
