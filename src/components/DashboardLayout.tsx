@@ -73,7 +73,7 @@ function getInitials(name?: string | null) {
 }
 
 function UserDropdown() {
-    const { user } = useUser();
+    const { user, loading } = useUser();
     const router = useRouter();
 
     const handleSignOut = async () => {
@@ -81,6 +81,18 @@ function UserDropdown() {
         await signOut(auth);
         router.push('/login');
     };
+    
+    if (loading) {
+      return (
+        <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-8 rounded-full" />
+            <div className="hidden md:flex flex-col gap-1">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-3 w-12" />
+            </div>
+        </div>
+      )
+    }
     
     return (
         <DropdownMenu>
@@ -138,55 +150,6 @@ function UserDropdown() {
     )
 }
 
-function DashboardSkeleton() {
-  return (
-      <SidebarProvider>
-        <Sidebar variant="sidebar" collapsible="icon">
-          <SidebarHeader>
-              <div className="flex items-center gap-2 p-2">
-                <Leaf className="w-6 h-6 text-primary" />
-                <span className="font-bold text-lg text-sidebar-primary group-data-[collapsible=icon]:hidden">
-                    AgriClear
-                </span>
-              </div>
-          </SidebarHeader>
-          <SidebarContent>
-            <div className="flex flex-col gap-2 p-2">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-            </div>
-          </SidebarContent>
-        </Sidebar>
-
-        <SidebarInset>
-          <header className="flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">
-            <div className="flex items-center gap-2">
-                <SidebarTrigger className="md:hidden" />
-                <Skeleton className="h-6 w-32" />
-            </div>
-            <div className='flex items-center gap-4'>
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <div className="flex items-center gap-2">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-6 w-20 hidden md:block" />
-                </div>
-            </div>
-          </header>
-          <main className="flex-1 p-4 sm:p-6">
-              <div className="space-y-4">
-                  <Skeleton className="h-10 w-1/4" />
-                  <Skeleton className="h-40 w-full" />
-                   <Skeleton className="h-40 w-full" />
-              </div>
-          </main>
-        </SidebarInset>
-    </SidebarProvider>
-  )
-}
-
-
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useUser();
@@ -195,17 +158,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const role = user?.role as keyof typeof navItems | undefined;
 
   React.useEffect(() => {
+    // This effect handles redirecting unauthenticated users.
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
   
-
-  if (loading || !user || !role) {
-    return <DashboardSkeleton />;
-  }
-  
-  const currentNav = navItems[role] || [];
+  const currentNav = role ? navItems[role] : [];
   
   return (
     <SidebarProvider>
@@ -230,19 +189,28 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       </SidebarMenuButton>
                   </Link>
               </SidebarMenuItem>
-              {currentNav.map((item) => (
-                <SidebarMenuItem key={item.label}>
-                    <Link href={item.href}>
-                        <SidebarMenuButton
-                            isActive={pathname === item.href}
-                            icon={item.icon}
-                            tooltip={item.label}
-                        >
-                            {item.label}
-                        </SidebarMenuButton>
-                    </Link>
-                </SidebarMenuItem>
-              ))}
+              
+              {loading && !role ? (
+                  <div className="flex flex-col gap-2 p-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+              ) : (
+                currentNav.map((item) => (
+                  <SidebarMenuItem key={item.label}>
+                      <Link href={item.href}>
+                          <SidebarMenuButton
+                              isActive={pathname === item.href}
+                              icon={item.icon}
+                              tooltip={item.label}
+                          >
+                              {item.label}
+                          </SidebarMenuButton>
+                      </Link>
+                  </SidebarMenuItem>
+                ))
+              )}
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
