@@ -7,9 +7,21 @@ import { Button } from "@/components/ui/button";
 import { ShoppingBag, Package, Heart } from "lucide-react";
 import Link from "next/link";
 import { useUser } from "@/firebase/auth/use-user";
+import { useFirestore, useMemoFirebase } from "@/firebase/provider";
+import { collection, query, where } from "firebase/firestore";
+import { useCollection } from "@/firebase";
 
 export default function BuyerDashboardPage() {
   const { user } = useUser();
+  const firestore = useFirestore();
+
+  const ordersQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, "orders"), where("buyer_id", "==", user.uid));
+  }, [user, firestore]);
+
+  const { data: orders, isLoading } = useCollection(ordersQuery);
+  const activeOrdersCount = orders?.filter(o => o.status !== 'delivered' && o.status !== 'paid').length || 0;
 
   return (
     <DashboardLayout>
@@ -36,7 +48,11 @@ export default function BuyerDashboardPage() {
             <CardDescription>Track your active and past orders.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">You have <strong>3</strong> active orders (mock data).</p>
+            {isLoading ? (
+                <p className="text-sm text-muted-foreground mb-4">Loading orders...</p>
+            ) : (
+                <p className="text-sm text-muted-foreground mb-4">You have <strong>{activeOrdersCount}</strong> active order(s).</p>
+            )}
             <Button asChild variant="secondary" className="w-full">
                 <Link href="/buyer/orders">View Orders</Link>
             </Button>
@@ -52,9 +68,9 @@ export default function BuyerDashboardPage() {
             <CardDescription>Re-order your favorite products and farmers.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">You have <strong>5</strong> favorite products.</p>
-            <Button asChild variant="secondary" className="w-full">
-                <Link href="/buyer/favorites">View Favorites</Link>
+            <p className="text-sm text-muted-foreground mb-4">You have <strong>0</strong> favorite products.</p>
+            <Button asChild variant="secondary" className="w-full" disabled>
+                <Link href="#">View Favorites</Link>
             </Button>
           </CardContent>
         </Card>

@@ -10,7 +10,7 @@ import { Activity, Award, DollarSign, Leaf, PlusCircle, ArrowUpRight } from "luc
 import { useUser } from "@/firebase/auth/use-user";
 import Link from "next/link";
 import { useCollection } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import React from "react";
 
@@ -20,6 +20,7 @@ const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | 
   delivered: "success",
   pending: "outline",
   confirmed: "default",
+  paid: "success",
 };
 
 export default function FarmerDashboardPage() {
@@ -33,20 +34,24 @@ export default function FarmerDashboardPage() {
 
   const ordersQuery = useMemoFirebase(() => {
       if (!user) return null;
-      return query(collection(firestore, "orders"), where("farmer_id", "==", user.uid));
+      return query(
+        collection(firestore, "orders"), 
+        where("farmer_id", "==", user.uid),
+        orderBy("created_at", "desc")
+      );
   }, [user, firestore]);
   
   const { data: products, isLoading: productsLoading } = useCollection(productsQuery);
   const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery);
 
-  const totalRevenue = orders?.reduce((acc, order) => acc + order.amount, 0) || 0;
-  const openOrdersCount = orders?.filter(o => o.status !== 'delivered' && o.status !== 'shipped').length || 0;
+  const totalRevenue = orders?.filter(o => o.status === 'paid' || o.status === 'delivered').reduce((acc, order) => acc + order.amount, 0) || 0;
+  const openOrdersCount = orders?.filter(o => o.status === 'confirmed' || o.status === 'processing').length || 0;
 
   const stats = [
-      { title: "Total Products", value: products?.length ?? 0, icon: Leaf, change: "", changeType: "increase" },
-      { title: "Open Orders", value: openOrdersCount, icon: Activity, change: "", changeType: "increase" },
-      { title: "Total Revenue", value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign, change: "", changeType: "increase" },
-      { title: "Sustainability Tokens", value: "85 AGR", icon: Award, change: "+15 earned", changeType: "increase" },
+      { title: "Total Products", value: productsLoading ? '...' : products?.length ?? 0, icon: Leaf, change: "", changeType: "increase" },
+      { title: "Open Orders", value: ordersLoading ? '...' : openOrdersCount, icon: Activity, change: "", changeType: "increase" },
+      { title: "Total Revenue", value: ordersLoading ? '...' : `$${totalRevenue.toFixed(2)}`, icon: DollarSign, change: "", changeType: "increase" },
+      { title: "Sustainability Tokens", value: "0 AGR", icon: Award, change: "", changeType: "increase" },
   ];
 
   const recentOrders = orders?.slice(0, 5) || [];
@@ -89,8 +94,15 @@ export default function FarmerDashboardPage() {
 
         <Card>
             <CardHeader>
-                <CardTitle>Recent Orders</CardTitle>
-                <CardDescription>A summary of your most recent sales.</CardDescription>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle>Recent Orders</CardTitle>
+                        <CardDescription>A summary of your most recent sales.</CardDescription>
+                    </div>
+                    <Button asChild variant="secondary" size="sm">
+                        <Link href="/farmer/orders">View All Orders</Link>
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -108,7 +120,7 @@ export default function FarmerDashboardPage() {
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center">Loading orders...</TableCell>
                             </TableRow>
-                        ) : recentOrders.map((order) => (
+                        ) : recentOrders.length > 0 ? ( recentOrders.map((order) => (
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">#{order.id.slice(0,6)}...</TableCell>
                                 <TableCell>{order.items.map((i:any) => i.product_name).join(', ')}</TableCell>
@@ -118,8 +130,7 @@ export default function FarmerDashboardPage() {
                                 </TableCell>
                                 <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
                             </TableRow>
-                        ))}
-                         { !ordersLoading && recentOrders.length === 0 && (
+                        ))) : (
                             <TableRow>
                                 <TableCell colSpan={5} className="text-center">You have no recent orders.</TableCell>
                             </TableRow>
