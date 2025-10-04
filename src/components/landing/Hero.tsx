@@ -42,17 +42,17 @@ const Hero = () => {
     <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex-grow flex items-center">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         <div className="hero-content">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
-            <span className="text-green-600">Transparent</span> Supply Chain for Indian Agriculture
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground leading-tight">
+            <span className="text-primary">Transparent</span> Supply Chain for Indian Agriculture
           </h1>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-4 text-lg text-muted-foreground">
             AgriChain leverages blockchain technology to create a fair, transparent, and efficient agricultural supply chain ecosystem connecting farmers directly with buyers.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
-            <Button asChild size="lg" className="px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition shadow-md hover:shadow-lg h-auto">
+            <Button asChild size="lg" className="px-6 py-3 font-medium rounded-lg shadow-md hover:shadow-lg h-auto">
               <Link href="/register">Get Started</Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition h-auto">
+            <Button asChild variant="outline" size="lg" className="px-6 py-3 font-medium rounded-lg hover:bg-accent transition h-auto">
               <Link href="#">
                 <Play className="w-5 h-5 mr-2" />
                 Watch Demo
@@ -61,7 +61,7 @@ const Hero = () => {
           </div>
         </div>
         <div className="relative hero-image">
-          <div className="bg-white rounded-xl shadow-xl border border-gray-200">
+          <div className="bg-card rounded-xl shadow-xl border border-border">
             {dashboardImage && (
               <Image
                 src={dashboardImage.imageUrl}
@@ -74,14 +74,14 @@ const Hero = () => {
               />
             )}
           </div>
-          <div className="absolute -bottom-6 -right-6 bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+          <div className="absolute -bottom-6 -right-6 bg-card p-4 rounded-lg shadow-lg border border-border">
             <div className="flex items-center">
-              <div className="bg-green-100 p-2 rounded-full">
-                <Shield className="w-6 h-6 text-green-600" />
+              <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-full">
+                <Shield className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-600">Blockchain Verified</p>
-                <p className="text-xs text-gray-500">Immutable records</p>
+                <p className="text-sm font-medium text-foreground">Blockchain Verified</p>
+                <p className="text-xs text-muted-foreground">Immutable records</p>
               </div>
             </div>
           </div>

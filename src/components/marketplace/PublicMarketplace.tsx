@@ -111,7 +111,7 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
                                         <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
                                         <Button size="sm" onClick={(e) => handleAddToCart(e, product)}>
                                             <ShoppingCart className="mr-2 h-4 w-4" />
-                                            Add to Cart
+                                            Add
                                         </Button>
                                     </CardFooter>
                                 </Card>

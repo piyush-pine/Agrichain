@@ -70,7 +70,7 @@ export default function PublicProductPage({ params }: { params: { productId: str
     }
 
     return (
-        <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
+        <div className="bg-gray-50 dark:bg-black min-h-screen p-4 sm:p-8">
             <div className="max-w-4xl mx-auto">
                 <div className="mb-6">
                     <Button asChild variant="outline">
