@@ -22,6 +22,7 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
     const { addToCart } = useCart();
 
     const productsQuery = useMemoFirebase(() => {
+        if (!firestore) return null; // Wait for firestore to be available
         const productsCollection = collection(firestore, "products");
         if (isHomePage) {
             return query(productsCollection, limit(8)); // Limit to 8 products for the homepage
