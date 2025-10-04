@@ -30,6 +30,7 @@ import {
   User as UserIcon, // Renamed to avoid conflict
   ChevronDown,
   Award,
+  Home,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getAuth, signOut } from 'firebase/auth';
@@ -48,8 +49,6 @@ const navItems = {
   admin: [
     { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/admin/users', icon: Users, label: 'User Management' },
-    // { href: '/admin/quality', icon: ShieldCheck, label: 'Quality Control' },
-    // { href: '/admin/fraud', icon: ShieldCheck, label: 'Fraud Detection' },
   ],
   buyer: [
     { href: '/buyer/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -195,6 +194,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                  <Link href="/">
+                      <SidebarMenuButton
+                          icon={Home}
+                          tooltip={"Homepage"}
+                      >
+                          Homepage
+                      </SidebarMenuButton>
+                  </Link>
+              </SidebarMenuItem>
               {currentNav.map((item) => (
                 <SidebarMenuItem key={item.label}>
                     <Link href={item.href}>
@@ -229,7 +238,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <span className="sr-only">Notifications</span>
                 </Button>
 
-                {role === 'buyer' && <CartSheet />}
+                <CartSheet />
 
                 <UserDropdown />
             </div>

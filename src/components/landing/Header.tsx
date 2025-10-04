@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -6,6 +7,8 @@ import Image from 'next/image';
 import { ChevronDown } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
+import { useUser } from '@/firebase/auth/use-user';
+import { CartSheet } from '../cart/CartSheet';
 
 declare global {
     interface Window {
@@ -15,6 +18,7 @@ declare global {
 
 const Header = () => {
   const logo = PlaceHolderImages.find((img) => img.id === 'agrichain-logo');
+  const { user } = useUser();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.anime) {
@@ -43,7 +47,7 @@ const Header = () => {
                   data-ai-hint={logo.imageHint}
                 />
               )}
-              <span className="text-xl font-bold text-green-600">AgriChain</span>
+              <span className="text-xl font-bold text-green-600">AgriClear</span>
             </Link>
           </div>
           <div className="hidden md:flex items-center space-x-4">
@@ -51,22 +55,31 @@ const Header = () => {
               <span className="text-sm text-gray-600">EN</span>
               <ChevronDown className="w-4 h-4 text-gray-500" />
             </div>
+            <Link href="/buyer/marketplace" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-green-600">
+              Marketplace
+            </Link>
             <Link href="#features" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-green-600">
               Features
-            </Link>
-            <Link href="#roles" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-green-600">
-              How It Works
             </Link>
             <Link href="#about" className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-green-600">
               About
             </Link>
             <div className="ml-4 flex items-center space-x-2">
-              <Button variant="ghost" asChild>
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button asChild className="bg-green-600 text-white hover:bg-green-700">
-                <Link href="/register">Register</Link>
-              </Button>
+              <CartSheet />
+              {user ? (
+                 <Button asChild className="bg-green-600 text-white hover:bg-green-700">
+                    <Link href={`/${user.role}/dashboard`}>Dashboard</Link>
+                 </Button>
+              ) : (
+                <>
+                    <Button variant="ghost" asChild>
+                        <Link href="/login">Login</Link>
+                    </Button>
+                    <Button asChild className="bg-green-600 text-white hover:bg-green-700">
+                        <Link href="/register">Register</Link>
+                    </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

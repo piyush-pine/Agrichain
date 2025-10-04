@@ -6,9 +6,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { useCollection } from "@/firebase";
-import { addDoc, collection, doc, serverTimestamp, writeBatch, getDoc } from "firebase/firestore";
+import { useFirestore } from "@/firebase/provider";
+import { addDoc, collection, doc, serverTimestamp, deleteDoc, getDoc } from "firebase/firestore";
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -16,28 +15,31 @@ import { useRouter } from 'next/navigation';
 import { ConnectWalletButton } from '@/components/blockchain/ConnectWalletButton';
 import { getEscrowPaymentContract, getProductProvenanceContract } from '@/lib/blockchain';
 import { ethers } from 'ethers';
-import { setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useCart } from '@/hooks/use-cart';
 
 export default function CheckoutPage() {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
+    const { cartItems, isLoading, mergeLocalCartWithFirestore } = useCart();
 
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [farmerWalletAddress, setFarmerWalletAddress] = useState<string | null>(null);
 
-    const cartQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return collection(firestore, 'users', user.uid, 'cart');
-    }, [user, firestore]);
-
-    const { data: cartItems, isLoading } = useCollection(cartQuery);
-    
     const subtotal = cartItems?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
     const farmerId = cartItems && cartItems.length > 0 ? cartItems[0].farmer_id : null;
+
+    useEffect(() => {
+        if (!user) {
+           router.push('/login');
+           return;
+        }
+        // Ensure cart is synced before proceeding
+        mergeLocalCartWithFirestore(user.uid);
+    }, [user, router, mergeLocalCartWithFirestore]);
 
     useEffect(() => {
         const fetchFarmerWallet = async () => {
@@ -136,10 +138,11 @@ export default function CheckoutPage() {
             updateDocumentNonBlocking(firestoreOrderRef, { status: 'confirmed' });
 
             // Clear the cart
-            cartItems.forEach(item => {
+            const batchDeletes = cartItems.map(item => {
                 const cartItemRef = doc(firestore, 'users', user.uid, 'cart', item.id);
-                deleteDocumentNonBlocking(cartItemRef);
+                return deleteDoc(cartItemRef);
             });
+            await Promise.all(batchDeletes);
             
             toast({
                 title: 'Order Placed Successfully!',
@@ -188,7 +191,7 @@ export default function CheckoutPage() {
                                     {cartItems.map(item => (
                                         <div key={item.id} className="flex items-center gap-4">
                                             <div className="relative h-16 w-16 rounded-md overflow-hidden bg-muted">
-                                                <Image src={item.image_url} alt={item.product_name} layout="fill" objectFit="cover" />
+                                                <Image src={item.image_url!} alt={item.product_name} layout="fill" objectFit="cover" />
                                             </div>
                                             <div className="flex-1">
                                                 <h4 className="font-semibold">{item.product_name}</h4>
@@ -245,5 +248,3 @@ export default function CheckoutPage() {
         </DashboardLayout>
     );
 }
-
-    

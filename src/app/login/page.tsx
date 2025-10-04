@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -26,6 +27,7 @@ import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useEffect } from 'react';
+import { useCart } from '@/hooks/use-cart';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -40,6 +42,7 @@ export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
   const { user, loading } = useUser();
+  const { mergeLocalCartWithFirestore } = useCart();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,9 +54,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user && user.role) {
-      router.push(`/${user.role}/dashboard`);
+      mergeLocalCartWithFirestore(user.uid);
+      const redirectUrl = localStorage.getItem('redirectAfterLogin') || `/${user.role}/dashboard`;
+      localStorage.removeItem('redirectAfterLogin');
+      router.push(redirectUrl);
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, mergeLocalCartWithFirestore]);
 
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -74,7 +80,7 @@ export default function LoginPage() {
     }
   }
 
-  if (loading || user) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div>Loading...</div>

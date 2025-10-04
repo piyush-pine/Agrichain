@@ -6,32 +6,28 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart } from 'lucide-react';
-import { useUser } from '@/firebase/auth/use-user';
-import { useFirestore, useMemoFirebase } from '@/firebase/provider';
-import { useCollection, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
 import Image from 'next/image';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCart } from '@/hooks/use-cart';
+import { useUser } from '@/firebase/auth/use-user';
 
 export function CartSheet() {
     const { user } = useUser();
-    const firestore = useFirestore();
-
-    const cartQuery = useMemoFirebase(() => {
-        if (!user) return null;
-        return collection(firestore, 'users', user.uid, 'cart');
-    }, [user, firestore]);
-
-    const { data: cartItems, isLoading } = useCollection(cartQuery);
+    const router = useRouter();
+    const { cartItems, removeFromCart, isLoading } = useCart();
 
     const subtotal = cartItems?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
 
-    const handleRemoveItem = (productId: string) => {
-        if (!user) return;
-        const itemRef = doc(firestore, 'users', user.uid, 'cart', productId);
-        deleteDocumentNonBlocking(itemRef);
+    const handleCheckout = () => {
+        if (user) {
+            router.push('/buyer/checkout');
+        } else {
+            // Store intended destination and redirect to login
+            localStorage.setItem('redirectAfterLogin', '/buyer/checkout');
+            router.push('/login');
+        }
     };
 
     return (
@@ -68,14 +64,14 @@ export function CartSheet() {
                                 {cartItems.map(item => (
                                     <div key={item.id} className="flex items-start gap-4">
                                         <div className="relative h-16 w-16 rounded-md overflow-hidden bg-muted">
-                                            <Image src={item.image_url} alt={item.product_name} layout="fill" objectFit="cover" />
+                                            <Image src={item.image_url!} alt={item.product_name} layout="fill" objectFit="cover" />
                                         </div>
                                         <div className="flex-1">
                                             <h4 className="font-semibold text-sm">{item.product_name}</h4>
                                             <p className="text-xs text-muted-foreground">Quantity: {item.quantity}</p>
                                             <p className="text-sm font-medium mt-1">${item.price.toFixed(2)}</p>
                                         </div>
-                                        <Button variant="outline" size="sm" onClick={() => handleRemoveItem(item.id)}>Remove</Button>
+                                        <Button variant="outline" size="sm" onClick={() => removeFromCart(item.id)}>Remove</Button>
                                     </div>
                                 ))}
                             </div>
@@ -88,8 +84,8 @@ export function CartSheet() {
                                     <span>Subtotal</span>
                                     <span>${subtotal.toFixed(2)}</span>
                                 </div>
-                                <Button className="w-full" asChild>
-                                    <Link href="/buyer/checkout">Proceed to Checkout</Link>
+                                <Button className="w-full" onClick={handleCheckout}>
+                                    Proceed to Checkout
                                 </Button>
                             </div>
                         </SheetFooter>
@@ -97,5 +93,5 @@ export function CartSheet() {
                 )}
             </SheetContent>
         </Sheet>
-    )
+    );
 }
