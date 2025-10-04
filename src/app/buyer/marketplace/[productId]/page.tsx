@@ -30,46 +30,38 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
     const [isLoadingProvenance, setIsLoadingProvenance] = useState(true);
 
     const productRef = useMemoFirebase(() => {
-        if (!params.productId) return null;
+        if (!params.productId || !firestore) return null;
         return doc(firestore, 'products', params.productId);
     }, [firestore, params.productId]);
     
     const { data: product, isLoading: isLoadingProduct } = useDoc(productRef);
 
     useEffect(() => {
-        const fetchFarmerAndProvenance = async () => {
-            if (product && product.farmer_id && firestore) {
-                // Fetch farmer details
-                setIsLoadingFarmer(true);
-                try {
-                    const farmerRef = doc(firestore, 'users', product.farmer_id);
-                    const farmerSnap = await getDoc(farmerRef);
-                    if (farmerSnap.exists()) {
-                        setFarmer(farmerSnap.data());
-                    }
-                } catch(e) {
-                    console.error("Error fetching farmer data: ", e);
-                } finally {
-                    setIsLoadingFarmer(false);
+        if (product && product.farmer_id && firestore) {
+            setIsLoadingFarmer(true);
+            const farmerRef = doc(firestore, 'users', product.farmer_id);
+            const unsub = onSnapshot(farmerRef, (farmerSnap) => {
+                if (farmerSnap.exists()) {
+                    setFarmer(farmerSnap.data());
                 }
-
-                // Fetch blockchain history
-                setIsLoadingProvenance(true);
-                 try {
-                    const history = await getProductHistory(product.id);
-                    setProvenance(history);
-                } catch(e) {
-                    console.error("Error fetching provenance data: ", e);
-                } finally {
-                    setIsLoadingProvenance(false);
-                }
-            } else if (product) {
-                // Product exists but has no farmer_id, so we're not loading a farmer.
                 setIsLoadingFarmer(false);
-            }
-        };
-        fetchFarmerAndProvenance();
+            }, () => setIsLoadingFarmer(false));
+            return () => unsub();
+        } else if (product) {
+            setIsLoadingFarmer(false);
+        }
     }, [product, firestore]);
+    
+    useEffect(() => {
+        if (params.productId) {
+            setIsLoadingProvenance(true);
+            getProductHistory(params.productId)
+                .then(setProvenance)
+                .catch(e => console.error("Error fetching provenance: ", e))
+                .finally(() => setIsLoadingProvenance(false));
+        }
+    }, [params.productId]);
+
 
     const handleAddToCart = () => {
         if(product) {
@@ -77,7 +69,11 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
         }
     };
     
-    if (!isLoadingProduct && !product) {
+    if (isLoadingProduct) {
+        return <ProductDetailSkeleton />;
+    }
+
+    if (!product) {
         return <p>Product not found.</p>;
     }
 
@@ -87,45 +83,27 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
             <div className="md:col-span-3">
                 <Card className="overflow-hidden">
                     <div className="relative h-96 w-full bg-muted">
-                       {isLoadingProduct ? (
-                           <Skeleton className="h-full w-full" />
-                       ) : (
-                           <Image 
-                                src={product.image_url || `https://picsum.photos/seed/${product.id}/600/400`}
-                                alt={product.name}
-                                layout="fill"
-                                objectFit="cover"
-                            />
-                       )}
+                        <Image 
+                            src={product.image_url || `https://picsum.photos/seed/${product.id}/600/400`}
+                            alt={product.name}
+                            layout="fill"
+                            objectFit="cover"
+                        />
                     </div>
                     <CardHeader>
-                        {isLoadingProduct ? (
-                            <div className="space-y-3">
-                                <Skeleton className="h-6 w-24" />
-                                <Skeleton className="h-10 w-3/4" />
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <Badge variant="outline">{product.category}</Badge>
+                                <CardTitle className="text-4xl font-bold mt-2">{product.name}</CardTitle>
                             </div>
-                        ) : (
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <Badge variant="outline">{product.category}</Badge>
-                                    <CardTitle className="text-4xl font-bold mt-2">{product.name}</CardTitle>
-                                </div>
-                                <div className="text-3xl font-bold text-primary">${product.price.toFixed(2)}</div>
-                            </div>
-                        )}
+                            <div className="text-3xl font-bold text-primary">${product.price.toFixed(2)}</div>
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        {isLoadingProduct ? (
-                             <div className="space-y-2">
-                                <Skeleton className="h-4 w-full" />
-                                <Skeleton className="h-4 w-5/6" />
-                            </div>
-                        ) : (
-                             <p className="text-muted-foreground">{product.description}</p>
-                        )}
+                         <p className="text-muted-foreground">{product.description}</p>
                         <Separator className="my-6" />
                         <div className="flex justify-end">
-                             <Button size="lg" onClick={handleAddToCart} disabled={isLoadingProduct}>
+                             <Button size="lg" onClick={handleAddToCart}>
                                 <ShoppingCart className="mr-2 h-5 w-5" />
                                 Add to Cart
                             </Button>
@@ -201,9 +179,73 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
     );
 }
 
+const ProductDetailSkeleton = () => (
+    <div className="grid md:grid-cols-5 gap-12">
+        <div className="md:col-span-3">
+            <Card className="overflow-hidden">
+                <Skeleton className="h-96 w-full" />
+                <CardHeader>
+                    <div className="space-y-3">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-10 w-3/4" />
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-5/6" />
+                    </div>
+                    <Separator className="my-6" />
+                    <div className="flex justify-end">
+                        <Skeleton className="h-12 w-36" />
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+        <div className="md:col-span-2 space-y-8">
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-24" />
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-2">
+                        <Skeleton className="h-6 w-1/2 mb-2" />
+                        <Skeleton className="h-4 w-1/3" />
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-36 mb-2" />
+                    <Skeleton className="h-4 w-full" />
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4 pt-2">
+                        <Skeleton className="h-8 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    </div>
+);
+
 
 export default function ProductDetailPage({ params }: { params: { productId: string } }) {
-    const { user } = useUser();
+    const { user, loading } = useUser();
+
+    // While determining if user is logged in, show skeleton
+    if (loading) {
+         return (
+            <div className="relative z-10 min-h-screen flex flex-col bg-background">
+                <Header />
+                <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+                   <ProductDetailSkeleton />
+                </main>
+                <Footer />
+            </div>
+        );
+    }
 
     if (user) {
         return (

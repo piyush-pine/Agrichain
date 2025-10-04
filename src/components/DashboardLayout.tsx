@@ -41,7 +41,7 @@ import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { CartSheet } from './cart/CartSheet';
 import { Skeleton } from './ui/skeleton';
-import { useFirestore } from '@/firebase';
+import { useFirestore } from '@/firebase/provider';
 import { ensureUserWallet } from '@/lib/wallet-utils';
 
 const navItems = {
@@ -182,26 +182,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, firestore]);
   
-  // If we are loading and have no user object yet, we can show a full-page loader.
-  // This is the only time the entire screen will be blocked.
-  if (loading && !user) {
-      return (
-        <div className="w-full h-screen flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      );
-  }
-  
-  // Don't render the dashboard for a logged-in user who doesn't have a role yet.
-  // This can happen briefly during registration. Redirecting to login is a safe fallback.
-  if (!loading && user && !role) {
-    router.push('/login');
-    return (
-        <div className="w-full h-screen flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-    );
-  }
+  // Do NOT block rendering here. Let the page content render immediately.
+  // The useEffect hook above will handle redirection if necessary.
   
   return (
     <SidebarProvider>

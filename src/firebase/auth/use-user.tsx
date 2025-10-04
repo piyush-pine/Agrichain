@@ -1,7 +1,7 @@
 
 'use client';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
-import { doc, DocumentData, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, DocumentData, onSnapshot } from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth, useFirestore } from '../provider';
 
@@ -49,12 +49,14 @@ export const UserProvider: React.FC<{
               });
             } else {
               // This case can happen briefly during registration before the user doc is created.
+              // Also handles cases where profile doesn't exist yet but user is authenticated.
               setUserState({ user: { ...user, role: undefined }, loading: false });
             }
           },
           (error) => {
-            // Firestore permission denied or other error. Gracefully handle it.
+            // Firestore permission denied or other error (e.g., offline). Gracefully handle it.
             // User is still authenticated via Firebase Auth.
+            console.warn("Could not fetch user profile from Firestore. User may be offline or rules may prevent access.", error.code);
             setUserState({ user: { ...user, role: undefined }, loading: false });
           }
         );

@@ -78,7 +78,7 @@ export default function ProfilePage() {
 
     updateDocumentNonBlocking(userRef, dataToUpdate);
 
-    if (user.displayName !== values.name) {
+    if (currentUser.displayName !== values.name) {
       updateProfile(currentUser, { displayName: values.name });
     }
 

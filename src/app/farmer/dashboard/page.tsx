@@ -14,6 +14,7 @@ import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import React from "react";
 import { ConnectWalletBanner } from "@/components/blockchain/ConnectWalletBanner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
   shipped: "default",
@@ -49,10 +50,10 @@ export default function FarmerDashboardPage() {
   const openOrdersCount = orders?.filter(o => o.status === 'confirmed' || o.status === 'processing').length || 0;
 
   const stats = [
-      { title: "Total Products", value: productsLoading ? '...' : products?.length ?? 0, icon: Leaf, change: "", changeType: "increase" },
-      { title: "Open Orders", value: ordersLoading ? '...' : openOrdersCount, icon: Activity, change: "", changeType: "increase" },
-      { title: "Total Revenue", value: ordersLoading ? '...' : `$${totalRevenue.toFixed(2)}`, icon: DollarSign, change: "", changeType: "increase" },
-      { title: "Sustainability Tokens", value: "0 AGR", icon: Award, change: "", changeType: "increase" },
+      { title: "Total Products", value: productsLoading ? null : products?.length ?? 0, icon: Leaf },
+      { title: "Open Orders", value: ordersLoading ? null : openOrdersCount, icon: Activity },
+      { title: "Total Revenue", value: ordersLoading ? null : `$${totalRevenue.toFixed(2)}`, icon: DollarSign },
+      { title: "Sustainability Tokens", value: "0 AGR", icon: Award },
   ];
 
   const recentOrders = orders?.slice(0, 5) || [];
@@ -82,12 +83,10 @@ export default function FarmerDashboardPage() {
                         <stat.icon className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stat.value}</div>
-                        {stat.change && (
-                            <p className="text-xs text-muted-foreground flex items-center">
-                                <ArrowUpRight className="h-3 w-3 mr-1 text-green-500"/>
-                                <span className="text-green-500 font-semibold">{stat.change}</span>
-                            </p>
+                        {stat.value === null ? (
+                            <Skeleton className="h-8 w-24 mt-1" />
+                        ) : (
+                            <div className="text-2xl font-bold">{stat.value}</div>
                         )}
                     </CardContent>
                 </Card>
@@ -119,9 +118,15 @@ export default function FarmerDashboardPage() {
                     </TableHeader>
                     <TableBody>
                         {ordersLoading ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center">Loading orders...</TableCell>
-                            </TableRow>
+                           [...Array(3)].map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                    <TableCell><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                                    <TableCell className="text-right"><Skeleton className="h-5 w-16 ml-auto" /></TableCell>
+                                </TableRow>
+                            ))
                         ) : recentOrders.length > 0 ? ( recentOrders.map((order) => (
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">#{order.id.slice(0,6)}...</TableCell>
