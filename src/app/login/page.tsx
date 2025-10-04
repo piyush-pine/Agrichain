@@ -29,6 +29,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { useEffect } from 'react';
 import { useCart } from '@/hooks/use-cart';
 import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -84,11 +85,14 @@ export default function LoginPage() {
     // or by onAuthStateChanged, and we want the UI to remain responsive.
   }
   
-  // Show a loading state if we're in the middle of a redirect.
-  if (!isUserLoading && user && user.role) {
+  // Show a loading state if we're in the middle of an auth state change or redirect.
+  if (isUserLoading || (user && user.role)) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
-            <div>Redirecting...</div>
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Redirecting to your dashboard...</p>
+            </div>
         </div>
     );
   }
