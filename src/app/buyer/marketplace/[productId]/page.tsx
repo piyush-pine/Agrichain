@@ -20,6 +20,8 @@ import Header from '@/components/landing/Header';
 import Footer from '@/components/landing/Footer';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UserProvider } from '@/firebase/auth/use-user';
+import { NextIntlClientProvider } from 'next-intl';
+import { useMessages } from 'next-intl';
 
 function ProductDetailContent({ params }: { params: { productId: string } }) {
     const firestore = useFirestore();
@@ -235,18 +237,21 @@ const ProductDetailSkeleton = () => (
 
 export default function ProductDetailPage({ params }: { params: { productId: string } }) {
     const { user, loading } = useUser();
+    const messages = useMessages();
 
     if (loading && !user) {
          return (
             <FirebaseClientProvider>
                 <UserProvider>
-                    <div className="relative z-10 min-h-screen flex flex-col bg-background">
-                        <Header />
-                        <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-                           <ProductDetailSkeleton />
-                        </main>
-                        <Footer />
-                    </div>
+                    <NextIntlClientProvider messages={messages}>
+                        <div className="relative z-10 min-h-screen flex flex-col bg-background">
+                            <Header />
+                            <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+                               <ProductDetailSkeleton />
+                            </main>
+                            <Footer />
+                        </div>
+                    </NextIntlClientProvider>
                 </UserProvider>
             </FirebaseClientProvider>
         );
@@ -263,13 +268,15 @@ export default function ProductDetailPage({ params }: { params: { productId: str
     return (
         <FirebaseClientProvider>
             <UserProvider>
-                <div className="relative z-10 min-h-screen flex flex-col bg-background">
-                    <Header />
-                    <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-                       <ProductDetailContent params={params} />
-                    </main>
-                    <Footer />
-                </div>
+                <NextIntlClientProvider messages={messages}>
+                    <div className="relative z-10 min-h-screen flex flex-col bg-background">
+                        <Header />
+                        <main className="flex-grow container mx-auto px-4 py-8 sm:px-6 lg:px-8">
+                           <ProductDetailContent params={params} />
+                        </main>
+                        <Footer />
+                    </div>
+                </NextIntlClientProvider>
             </UserProvider>
         </FirebaseClientProvider>
     )
