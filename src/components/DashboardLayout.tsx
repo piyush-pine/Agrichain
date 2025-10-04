@@ -151,14 +151,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [user, loading, router]);
   
 
-  if (loading) {
+  if (loading || !user || !role) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>; // Or a proper skeleton loader
-  }
-
-  if (!user || !role) {
-    // If there's no user or the role is missing, don't render the dashboard.
-    // The useEffect above will handle redirection.
-    return null;
   }
   
   const currentNav = navItems[role] || [];
