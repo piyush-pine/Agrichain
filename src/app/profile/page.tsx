@@ -17,6 +17,7 @@ import { doc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { updateDocumentNonBlocking } from '@/firebase';
 import { Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
@@ -91,16 +92,6 @@ export default function ProfilePage() {
       setIsSubmitting(false);
     }
   };
-  
-  if (isUserLoading) {
-    return (
-        <DashboardLayout>
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-        </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>
@@ -109,71 +100,97 @@ export default function ProfilePage() {
       </div>
       <div className="grid gap-8 md:grid-cols-3">
         <div className="md:col-span-2">
-            <Card>
-                <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
-                <CardDescription>Update your account details here.</CardDescription>
-                </CardHeader>
-                <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle>Personal Information</CardTitle>
+              <CardDescription>Update your account details here.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isUserLoading ? (
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="flex justify-end">
+                    <Skeleton className="h-10 w-28" />
+                  </div>
+                </div>
+              ) : (
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                        <FormField
-                            control={form.control}
-                            name="name"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Full Name</FormLabel>
-                                <FormControl>
-                                <Input placeholder="Your full name" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="companyName"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Company Name (Optional)</FormLabel>
-                                <FormControl>
-                                <Input placeholder="Your farm or company name" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <div className="flex justify-end">
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {isSubmitting ? 'Saving...' : 'Save Changes'}
-                            </Button>
-                        </div>
-                    </form>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Your full name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="companyName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Name (Optional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Your farm or company name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end">
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isSubmitting ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                    </div>
+                  </form>
                 </Form>
-                </CardContent>
-            </Card>
+              )}
+            </CardContent>
+          </Card>
         </div>
         <div className="md:col-span-1">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Account Status</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Email</span>
-                        <span className="font-medium text-sm">{user?.email}</span>
-                    </div>
-                     <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Role</span>
-                        <span className="font-medium capitalize">{user?.role}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">User ID</span>
-                        <span className="font-mono text-xs text-muted-foreground">{user?.uid.slice(0, 12)}...</span>
-                    </div>
-                </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isUserLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="font-medium text-sm">{user?.email}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Role</span>
+                    <span className="font-medium capitalize">{user?.role}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">User ID</span>
+                    <span className="font-mono text-xs text-muted-foreground">{user?.uid.slice(0, 12)}...</span>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </DashboardLayout>
