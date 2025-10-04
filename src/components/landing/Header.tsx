@@ -10,6 +10,7 @@ import { useUser } from '@/firebase/auth/use-user';
 import { CartSheet } from '../cart/CartSheet';
 import { ThemeToggle } from '../ThemeToggle';
 import { useTranslations } from 'next-intl';
+import LanguageSwitcher from '../LanguageSwitcher';
 
 declare global {
   interface Window {
@@ -63,6 +64,7 @@ const Header = () => {
               {t('about')}
             </Link>
             <div className="ml-4 flex items-center space-x-2">
+              <LanguageSwitcher />
               <ThemeToggle />
               <CartSheet />
               {user ? (
