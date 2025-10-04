@@ -2,9 +2,9 @@
   "placeholderImages": [
     {
       "id": "agrichain-logo",
-      "description": "AgriChain logo with a green leaf",
-      "imageUrl": "https://images.unsplash.com/photo-1627894531213-9189591e1d35?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGxlYWZ8ZW58MHx8fHwxNzE3ODg2NTg5fDA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "abstract leaf"
+      "description": "A modern logo for AgriClear showing a leaf intersecting with circuit-like lines.",
+      "imageUrl": "https://images.unsplash.com/photo-1593113598332-cd288d649433?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxhZ3JpY3VsdHVyZSUyMHRlY2hub2xvZ3l8ZW58MHx8fHwxNzE5Mzc5MjI1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "agriculture technology"
     },
     {
       "id": "dashboard-preview",

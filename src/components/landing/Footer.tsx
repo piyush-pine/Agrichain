@@ -56,7 +56,7 @@ const Footer = () => {
                     data-ai-hint={logo.imageHint}
                 />
               )}
-              <span className="ml-2 text-xl font-bold text-white">AgriChain</span>
+              <span className="ml-2 text-xl font-bold text-white">AgriClear</span>
             </div>
             <p className="mt-4 text-sm">
               Blockchain-powered transparent supply chain platform for Indian agriculture and MSMEs.
@@ -87,7 +87,7 @@ const Footer = () => {
           ))}
         </div>
         <div className="mt-12 pt-8 border-t border-gray-800 text-sm text-center">
-          <p>&copy; {new Date().getFullYear()} AgriChain. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} AgriClear. All rights reserved.</p>
         </div>
       </div>
     </footer>
