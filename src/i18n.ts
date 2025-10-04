@@ -1,14 +1,11 @@
-import {notFound} from 'next/navigation';
 import {getRequestConfig} from 'next-intl/server';
  
-// Can be imported from a shared config
-const locales = ['en', 'hi', 'bn', 'mr', 'te', 'ta'];
- 
 export default getRequestConfig(async ({locale}) => {
-  // Validate that the incoming `locale` parameter is valid
-  if (!locales.includes(locale as any)) notFound();
+  // This can be simplified to just import the file directly
+  // since we only have one locale at the moment.
+  const messages = (await import(`../messages/${locale}.json`)).default;
  
   return {
-    messages: (await import(`../messages/${locale}.json`)).default
+    messages
   };
 });
