@@ -23,12 +23,11 @@ import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { getAuth } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCart } from '@/hooks/use-cart';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
@@ -54,9 +53,10 @@ export default function LoginPage() {
     },
   });
 
+  // This effect reliably handles redirection AFTER a successful login and data fetch.
   useEffect(() => {
-    // This effect reliably handles redirection.
-    // It will fire if a user is already logged in, or after a new login succeeds.
+    // We only redirect if the user object exists AND has the role property.
+    // This prevents redirecting before Firestore data is loaded.
     if (!isUserLoading && user && user.role) {
       mergeLocalCartWithFirestore(user.uid);
       const redirectUrl = localStorage.getItem('redirectAfterLogin') || `/${user.role}/dashboard`;
@@ -71,16 +71,17 @@ export default function LoginPage() {
     
     toast({
         title: 'Attempting Login...',
-        description: 'You will be redirected shortly.',
+        description: 'Please wait.',
     });
 
     try {
-      // We await here to catch errors, but the onAuthStateChanged listener handles the redirect.
+      // Awaiting here is crucial to catch errors and manage the form's submitting state.
       await signInWithEmailAndPassword(auth, values.email, values.password);
-      // Let the useEffect handle the redirect.
+      // On success, we don't redirect here. The useEffect above will handle it
+      // once the useUser hook is updated with the complete user profile.
     } catch (error: any) {
         let errorMessage = 'An unexpected error occurred.';
-        // Handle Firebase specific auth errors
+        // Handle specific Firebase auth errors for better user feedback
         switch (error.code) {
             case 'auth/user-not-found':
             case 'auth/wrong-password':
@@ -88,8 +89,11 @@ export default function LoginPage() {
                 errorMessage = 'Invalid email or password. Please try again.';
                 break;
             case 'auth/too-many-requests':
-                errorMessage = 'Too many login attempts. Please try again later.';
+                errorMessage = 'Too many login attempts. Your account has been temporarily disabled.';
                 break;
+            default:
+                 errorMessage = error.message;
+                 break;
         }
         
         toast({
@@ -97,11 +101,13 @@ export default function LoginPage() {
             title: 'Login Failed',
             description: errorMessage,
         });
-        // The form state (isSubmitting) is automatically handled by react-hook-form
     }
+    // The isSubmitting state is automatically managed by react-hook-form
+    // because the onSubmit handler is `async`.
   }
   
-  // Show a loading state if we're in the middle of an auth state change or redirect.
+  // Show a loading screen if the `useUser` hook is working or if we have a user
+  // and are just waiting for the redirect effect to fire.
   if (isUserLoading || (user && user.role)) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -113,7 +119,7 @@ export default function LoginPage() {
     );
   }
 
-  // Otherwise, always show the login form.
+  // Default state: show the login form.
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
