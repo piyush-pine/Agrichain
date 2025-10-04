@@ -102,7 +102,7 @@ export default function RegisterRolePage({
 
       toast({
         title: 'Registration successful!',
-        description: `Welcome to AgriClear, ${values.name}!`,
+        description: `Welcome to AgriClear, ${values.name}! Redirecting...`,
       });
 
       router.push(`/${roleId}/dashboard`);
