@@ -1,14 +1,14 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/firebase/auth/use-user";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
-import { useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { useCollection, addDocumentNonBlocking } from "@/firebase";
+import { collection, doc, serverTimestamp, writeBatch, getDoc } from "firebase/firestore";
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,7 @@ export default function CheckoutPage() {
 
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+    const [farmerWalletAddress, setFarmerWalletAddress] = useState<string | null>(null);
 
     const cartQuery = useMemoFirebase(() => {
         if (!user) return null;
@@ -34,7 +35,19 @@ export default function CheckoutPage() {
     const { data: cartItems, isLoading } = useCollection(cartQuery);
     
     const subtotal = cartItems?.reduce((acc, item) => acc + item.price * item.quantity, 0) || 0;
-    const farmerId = cartItems && cartItems.length > 0 ? cartItems[0].farmer_id : null; // Assuming one farmer per order for now
+    const farmerId = cartItems && cartItems.length > 0 ? cartItems[0].farmer_id : null;
+
+    useEffect(() => {
+        const fetchFarmerWallet = async () => {
+            if (farmerId) {
+                const farmerDoc = await getDoc(doc(firestore, 'users', farmerId));
+                if (farmerDoc.exists()) {
+                    setFarmerWalletAddress(farmerDoc.data().walletAddress || null);
+                }
+            }
+        };
+        fetchFarmerWallet();
+    }, [farmerId, firestore]);
 
 
     const handlePlaceOrder = async () => {
@@ -47,6 +60,15 @@ export default function CheckoutPage() {
             return;
         }
 
+        if (!farmerWalletAddress) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'The farmer has not connected a wallet. Cannot place order.',
+            });
+            return;
+        }
+
         setIsPlacingOrder(true);
 
         try {
@@ -54,6 +76,7 @@ export default function CheckoutPage() {
             const orderData = {
                 buyer_id: user.uid,
                 farmer_id: farmerId,
+                farmer_wallet_address: farmerWalletAddress,
                 items: cartItems.map(item => ({
                     product_id: item.product_id,
                     product_name: item.product_name,
@@ -78,6 +101,7 @@ export default function CheckoutPage() {
             
             const transaction = await escrowContract.initiateEscrow(
                 orderRef.id,
+                farmerWalletAddress,
                 { value: ethers.parseEther(subtotal.toString()) }
             );
             
@@ -114,7 +138,7 @@ export default function CheckoutPage() {
             toast({
                 variant: 'destructive',
                 title: 'Order Failed',
-                description: error.message || 'An unexpected error occurred.',
+                description: error.reason || error.message || 'An unexpected error occurred.',
             });
         } finally {
             setIsPlacingOrder(false);
@@ -179,11 +203,16 @@ export default function CheckoutPage() {
                             <Button 
                                 className="w-full" 
                                 size="lg" 
-                                disabled={!walletAddress || isLoading || !cartItems || cartItems.length === 0 || isPlacingOrder}
+                                disabled={!walletAddress || isLoading || !cartItems || cartItems.length === 0 || isPlacingOrder || !farmerWalletAddress}
                                 onClick={handlePlaceOrder}
                             >
                                 {isPlacingOrder ? 'Placing Order...' : `Place Order & Pay $${subtotal.toFixed(2)}`}
                             </Button>
+                            {!farmerWalletAddress && cartItems && cartItems.length > 0 && (
+                                 <div className="text-center text-xs text-destructive p-2 bg-destructive/10 rounded-md">
+                                    The farmer for this item has not connected a wallet yet. You cannot place this order.
+                                </div>
+                            )}
                              <div className="text-center text-xs text-muted-foreground p-2 bg-secondary rounded-md">
                                 Clicking "Place Order" will prompt a blockchain transaction to secure your payment in a smart contract escrow.
                             </div>

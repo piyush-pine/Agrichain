@@ -60,7 +60,7 @@
           "indexed": false,
           "internalType": "uint256",
           "name": "amount",
-          "type": "uint25F"
+          "type": "uint256"
         }
       ],
       "name": "RefundIssued",
@@ -119,6 +119,11 @@
           "internalType": "string",
           "name": "orderId",
           "type": "string"
+        },
+        {
+          "internalType": "address",
+          "name": "_seller",
+          "type": "address"
         }
       ],
       "name": "initiateEscrow",
