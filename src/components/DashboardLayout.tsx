@@ -33,6 +33,7 @@ import {
   Wallet,
   ShieldAlert,
   Loader2,
+  Map,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getAuth, signOut } from 'firebase/auth';
@@ -169,10 +170,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router, pathname]);
   
-  const currentNav = role ? navItems[role] : [];
-
-  // Render the layout shell with skeletons while user/role is loading
-  const isLoading = loading || !role;
+  // This is now only used for the sidebar navigation, not the main content area.
+  const isNavLoading = loading || !role;
   
   return (
     <SidebarProvider>
@@ -198,14 +197,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </Link>
               </SidebarMenuItem>
               
-              {isLoading ? (
+              {isNavLoading ? (
                   <div className="flex flex-col gap-2 p-2">
                     <Skeleton className="h-8 w-full" />
                     <Skeleton className="h-8 w-full" />
                     <Skeleton className="h-8 w-full" />
                   </div>
               ) : (
-                currentNav.map((item) => (
+                navItems[role]?.map((item) => (
                   <SidebarMenuItem key={item.label}>
                       <Link href={item.href}>
                           <SidebarMenuButton
@@ -241,7 +240,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           <main className="flex-1 p-4 sm:p-6">
-            {isLoading ? <div className="w-full h-full flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : children}
+            {children}
           </main>
         </SidebarInset>
     </SidebarProvider>
