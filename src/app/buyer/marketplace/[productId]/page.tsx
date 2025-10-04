@@ -25,6 +25,7 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
     const { addToCart } = useCart();
     
     const [farmer, setFarmer] = useState<any>(null);
+    const [isLoadingFarmer, setIsLoadingFarmer] = useState(true);
     const [provenance, setProvenance] = useState<any[]>([]);
     const [isLoadingProvenance, setIsLoadingProvenance] = useState(true);
 
@@ -39,6 +40,7 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
         const fetchFarmerAndProvenance = async () => {
             if (product && product.farmer_id && firestore) {
                 // Fetch farmer details
+                setIsLoadingFarmer(true);
                 try {
                     const farmerRef = doc(firestore, 'users', product.farmer_id);
                     const farmerSnap = await getDoc(farmerRef);
@@ -47,8 +49,9 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
                     }
                 } catch(e) {
                     console.error("Error fetching farmer data: ", e);
+                } finally {
+                    setIsLoadingFarmer(false);
                 }
-
 
                 // Fetch blockchain history
                 setIsLoadingProvenance(true);
@@ -60,33 +63,21 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
                 } finally {
                     setIsLoadingProvenance(false);
                 }
+            } else if (product) {
+                // Product exists but has no farmer_id, so we're not loading a farmer.
+                setIsLoadingFarmer(false);
             }
         };
         fetchFarmerAndProvenance();
     }, [product, firestore]);
 
     const handleAddToCart = () => {
-        addToCart(product);
+        if(product) {
+            addToCart(product);
+        }
     };
-
-    if (isLoadingProduct) {
-        return (
-            <div className="grid md:grid-cols-5 gap-12">
-                <div className="md:col-span-3 space-y-4">
-                    <Skeleton className="h-96 w-full" />
-                    <Skeleton className="h-10 w-3/4" />
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-12 w-1/3 ml-auto" />
-                </div>
-                 <div className="md:col-span-2 space-y-8">
-                     <Skeleton className="h-32 w-full" />
-                     <Skeleton className="h-64 w-full" />
-                 </div>
-            </div>
-        );
-    }
     
-    if (!product) {
+    if (!isLoadingProduct && !product) {
         return <p>Product not found.</p>;
     }
 
@@ -96,27 +87,45 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
             <div className="md:col-span-3">
                 <Card className="overflow-hidden">
                     <div className="relative h-96 w-full bg-muted">
-                       <Image 
-                            src={product.image_url || `https://picsum.photos/seed/${product.id}/600/400`}
-                            alt={product.name}
-                            layout="fill"
-                            objectFit="cover"
-                        />
+                       {isLoadingProduct ? (
+                           <Skeleton className="h-full w-full" />
+                       ) : (
+                           <Image 
+                                src={product.image_url || `https://picsum.photos/seed/${product.id}/600/400`}
+                                alt={product.name}
+                                layout="fill"
+                                objectFit="cover"
+                            />
+                       )}
                     </div>
                     <CardHeader>
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <Badge variant="outline">{product.category}</Badge>
-                                <CardTitle className="text-4xl font-bold mt-2">{product.name}</CardTitle>
+                        {isLoadingProduct ? (
+                            <div className="space-y-3">
+                                <Skeleton className="h-6 w-24" />
+                                <Skeleton className="h-10 w-3/4" />
                             </div>
-                            <div className="text-3xl font-bold text-primary">${product.price.toFixed(2)}</div>
-                        </div>
+                        ) : (
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <Badge variant="outline">{product.category}</Badge>
+                                    <CardTitle className="text-4xl font-bold mt-2">{product.name}</CardTitle>
+                                </div>
+                                <div className="text-3xl font-bold text-primary">${product.price.toFixed(2)}</div>
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground">{product.description}</p>
+                        {isLoadingProduct ? (
+                             <div className="space-y-2">
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-5/6" />
+                            </div>
+                        ) : (
+                             <p className="text-muted-foreground">{product.description}</p>
+                        )}
                         <Separator className="my-6" />
                         <div className="flex justify-end">
-                             <Button size="lg" onClick={handleAddToCart}>
+                             <Button size="lg" onClick={handleAddToCart} disabled={isLoadingProduct}>
                                 <ShoppingCart className="mr-2 h-5 w-5" />
                                 Add to Cart
                             </Button>
@@ -125,30 +134,31 @@ function ProductDetailContent({ params }: { params: { productId: string } }) {
                 </Card>
             </div>
             <div className="md:col-span-2 space-y-8">
-                {farmer ? (
-                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                                <UserIcon className="h-5 w-5 text-primary" />
-                                <span>Sold By</span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="font-semibold text-xl">{farmer.name}</p>
-                            {farmer.created_at && (
-                                <p className="text-sm text-muted-foreground">Member since {new Date(farmer.created_at.seconds * 1000).getFullYear()}</p>
-                            )}
-                            {/* We can add farmer ratings here later */}
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <Card>
-                        <CardContent className="pt-6">
-                            <Skeleton className="h-6 w-1/2 mb-2" />
-                            <Skeleton className="h-4 w-1/3" />
-                        </CardContent>
-                    </Card>
-                )}
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <UserIcon className="h-5 w-5 text-primary" />
+                            <span>Sold By</span>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoadingFarmer ? (
+                             <div className="space-y-2">
+                                <Skeleton className="h-6 w-1/2 mb-2" />
+                                <Skeleton className="h-4 w-1/3" />
+                            </div>
+                        ) : farmer ? (
+                            <div>
+                                <p className="font-semibold text-xl">{farmer.name}</p>
+                                {farmer.created_at && (
+                                    <p className="text-sm text-muted-foreground">Member since {new Date(farmer.created_at.seconds * 1000).getFullYear()}</p>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">Farmer information not available.</p>
+                        )}
+                    </CardContent>
+                </Card>
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-lg">
