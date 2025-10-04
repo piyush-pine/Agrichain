@@ -53,8 +53,8 @@ export default function LogisticsDashboardPage() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground mb-4">Plan a new multi-stop route.</p>
-            <Button asChild variant="secondary" className="w-full" disabled>
-                <Link href="#">Plan Route</Link>
+            <Button asChild variant="secondary" className="w-full">
+                <Link href="/logistics/route-planner">Plan Route</Link>
             </Button>
           </CardContent>
         </Card>
