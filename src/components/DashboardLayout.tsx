@@ -166,18 +166,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const role = user?.role as keyof typeof navItems | undefined;
 
   React.useEffect(() => {
-    // This effect handles redirecting unauthenticated users.
     if (!loading && !user) {
       localStorage.setItem('redirectAfterLogin', pathname);
       router.push('/login');
     }
-    // This effect ensures existing users get a wallet if they don't have one.
     if (!loading && user && !user.walletAddress && firestore) {
       ensureUserWallet(firestore, user.uid);
     }
   }, [user, loading, router, pathname, firestore]);
   
-  // This is now only used for the sidebar navigation, not the main content area.
   const isNavLoading = loading || !role;
   
   return (
@@ -211,7 +208,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <Skeleton className="h-8 w-full" />
                   </div>
               ) : (
-                navItems[role]?.map((item) => (
+                role && navItems[role]?.map((item) => (
                   <SidebarMenuItem key={item.label}>
                       <Link href={item.href}>
                           <SidebarMenuButton
