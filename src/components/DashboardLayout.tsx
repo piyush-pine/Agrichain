@@ -167,17 +167,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const isNavLoading = loading || !role;
 
   React.useEffect(() => {
-    // This effect handles redirection and initial setup.
-    // It does not block rendering.
+    // This effect handles redirection. It does not block rendering.
+    // If the user state is finished loading and there is no user, redirect to login.
     if (!loading && !user) {
       localStorage.setItem('redirectAfterLogin', pathname);
       router.push('/login');
     }
+  }, [user, loading, router, pathname]);
+  
+  React.useEffect(() => {
     // Asynchronously ensure wallet exists without blocking UI
     if (!loading && user && !user.walletAddress && firestore) {
       ensureUserWallet(firestore, user.uid).catch(console.error);
     }
-  }, [user, loading, router, pathname, firestore]);
+  }, [user, loading, firestore]);
   
   // If we are loading and have no user object yet, we can show a full-page loader.
   // This is the only time the entire screen will be blocked.
@@ -187,6 +190,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       );
+  }
+  
+  // Don't render the dashboard for a logged-in user who doesn't have a role yet.
+  // This can happen briefly during registration. Redirecting to login is a safe fallback.
+  if (!loading && user && !role) {
+    router.push('/login');
+    return (
+        <div className="w-full h-screen flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    );
   }
   
   return (
