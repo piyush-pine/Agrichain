@@ -91,7 +91,7 @@ function UserDropdown() {
       return (
         <div className="flex items-center gap-2">
             <Skeleton className="h-8 w-8 rounded-full" />
-            <div className="hidden md:flex flex-col gap-1">
+            <div className="hidden md:flex flex-col gap-1.5 items-start">
               <Skeleton className="h-4 w-20" />
               <Skeleton className="h-3 w-12" />
             </div>
@@ -164,18 +164,30 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
   
   const role = user?.role as keyof typeof navItems | undefined;
+  const isNavLoading = loading || !role;
 
   React.useEffect(() => {
+    // This effect handles redirection and initial setup.
+    // It does not block rendering.
     if (!loading && !user) {
       localStorage.setItem('redirectAfterLogin', pathname);
       router.push('/login');
     }
+    // Asynchronously ensure wallet exists without blocking UI
     if (!loading && user && !user.walletAddress && firestore) {
-      ensureUserWallet(firestore, user.uid);
+      ensureUserWallet(firestore, user.uid).catch(console.error);
     }
   }, [user, loading, router, pathname, firestore]);
   
-  const isNavLoading = loading || !role;
+  // If we are loading and have no user object yet, we can show a full-page loader.
+  // This is the only time the entire screen will be blocked.
+  if (loading && !user) {
+      return (
+        <div className="w-full h-screen flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      );
+  }
   
   return (
     <SidebarProvider>
@@ -244,13 +256,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           <main className="flex-1 p-4 sm:p-6">
-             {loading && !user ? (
-               <div className="w-full h-full flex items-center justify-center">
-                 <Loader2 className="h-8 w-8 animate-spin" />
-               </div>
-             ) : (
-                children
-             )}
+             {children}
           </main>
         </SidebarInset>
     </SidebarProvider>
