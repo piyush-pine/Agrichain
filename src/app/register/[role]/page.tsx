@@ -88,7 +88,10 @@ export default function RegisterRolePage({
       const mockWalletAddress = wallet.address;
 
       const db = getFirestore();
-      await setDoc(doc(db, 'users', user.uid), {
+      
+      // IMPORTANT: Do not await this. Let it run in the background.
+      // This makes the UI feel instant. The useUser hook will pick up the role when ready.
+      setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         name: values.name,
         email: values.email,
@@ -105,7 +108,9 @@ export default function RegisterRolePage({
         description: `Welcome to AgriClear, ${values.name}! Redirecting...`,
       });
 
+      // Redirect immediately after auth is successful.
       router.push(`/${roleId}/dashboard`);
+
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -113,6 +118,7 @@ export default function RegisterRolePage({
         description: error.message,
       });
     } finally {
+        // This GUARANTEES the button state is reset, even if an error occurs.
         setIsSubmitting(false);
     }
   }
