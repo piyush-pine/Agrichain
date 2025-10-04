@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Sidebar,
   SidebarContent,
@@ -23,7 +23,6 @@ import {
   ShoppingBag,
   Package,
   Truck,
-  ShieldCheck,
   Leaf,
   Settings,
   Bell,
@@ -31,19 +30,13 @@ import {
   ChevronDown,
   Award,
   Home,
+  Wallet,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { getAuth, signOut } from 'firebase/auth';
 import { Button } from './ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { CartSheet } from './cart/CartSheet';
-import { ConnectWalletButton } from './blockchain/ConnectWalletButton';
-import { useFirestore } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Wallet } from 'lucide-react';
 
 const navItems = {
   admin: [
@@ -107,6 +100,16 @@ function UserDropdown() {
             <DropdownMenuContent className="w-56" align="end">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                 {user?.walletAddress && (
+                     <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground px-2">Simulated Wallet</DropdownMenuLabel>
+                        <DropdownMenuItem disabled className="flex flex-col items-start font-mono text-xs">
+                            <span>{user.walletAddress.slice(0, 22)}</span>
+                             <span>{user.walletAddress.slice(22)}</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                 )}
+                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                     <DropdownMenuItem>
                         <UserIcon className="mr-2 h-4 w-4" />
@@ -132,9 +135,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, loading } = useUser();
   const router = useRouter();
-  const firestore = useFirestore();
-  const { toast } = useToast();
-
+  
   const role = user?.role as keyof typeof navItems | undefined;
 
   React.useEffect(() => {
@@ -143,30 +144,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router]);
   
-  const handleWalletConnect = (address: string | null) => {
-    if (user && address) {
-        const userRef = doc(firestore, 'users', user.uid);
-        setDocumentNonBlocking(userRef, { walletAddress: address }, { merge: true });
-        toast({
-            title: 'Wallet Connected',
-            description: `Your wallet (${address.slice(0, 6)}...${address.slice(-4)}) has been linked to your profile.`,
-        });
-    }
-  };
-
-  const WalletPrompt = () => (
-    <Alert className="mt-4 bg-secondary">
-      <Wallet className="h-4 w-4" />
-      <AlertTitle>Connect Your Wallet</AlertTitle>
-      <AlertDescription>
-        Please connect your crypto wallet to interact with the blockchain features. This is required to list products and receive payments.
-        <div className="mt-4">
-          <ConnectWalletButton onAddressChanged={handleWalletConnect} />
-        </div>
-      </AlertDescription>
-    </Alert>
-  );
-
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>; // Or a proper skeleton loader
@@ -179,7 +156,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }
   
   const currentNav = navItems[role] || [];
-  const showWalletPrompt = (role === 'farmer' || role === 'buyer') && !user.walletAddress;
   
   return (
     <SidebarProvider>
@@ -218,11 +194,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
-            {showWalletPrompt && (
-                <div className="p-2 group-data-[collapsible=icon]:hidden">
-                    <WalletPrompt />
-                </div>
-            )}
           </SidebarContent>
         </Sidebar>
 

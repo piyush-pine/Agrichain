@@ -14,9 +14,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { releasePaymentFromEscrow } from '@/lib/blockchain';
-import { ethers } from 'ethers';
-import { QrCode, X } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { QrCode } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import QRCode from 'react-qr-code';
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
@@ -49,10 +48,6 @@ export default function BuyerOrdersPage() {
   const { data: orders, isLoading } = useCollection(ordersQuery);
 
   const handleConfirmDelivery = async (order: any) => {
-    if (!window.ethereum) {
-        toast({ variant: 'destructive', title: 'MetaMask not detected!' });
-        return;
-    }
      if (!order.farmer_wallet_address) {
         toast({ variant: 'destructive', title: 'Error', description: 'Farmer wallet address is not available for this order.' });
         return;
@@ -61,14 +56,12 @@ export default function BuyerOrdersPage() {
     setIsConfirming(order.id);
 
     try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-
-        toast({ title: 'Confirming Delivery...', description: 'Please approve the transaction in MetaMask to release payment.' });
+        toast({ title: 'Confirming Delivery (Simulated)...', description: 'Simulating transaction to release payment.' });
         
-        const tx = await releasePaymentFromEscrow(signer, order.id);
+        // The signer is not needed for the mock function
+        const tx = await releasePaymentFromEscrow(null as any, order.id);
         
-        toast({ title: 'Processing Blockchain Transaction', description: `Waiting for confirmation... Tx: ${tx.hash.slice(0,10)}...` });
+        toast({ title: 'Processing Mock Transaction', description: `Waiting for confirmation... Tx: ${tx.hash.slice(0,10)}...` });
         await tx.wait();
 
         const orderRef = doc(firestore, 'orders', order.id);
@@ -81,15 +74,15 @@ export default function BuyerOrdersPage() {
 
         toast({
             variant: 'success',
-            title: 'Payment Released!',
-            description: `You've confirmed delivery. Funds have been sent to the farmer.`,
+            title: 'Payment Released! (Simulated)',
+            description: `You've confirmed delivery. Mock funds have been sent to the farmer.`,
         });
 
     } catch (error: any) {
         console.error("Failed to release payment:", error);
         toast({
             variant: 'destructive',
-            title: 'Transaction Failed',
+            title: 'Mock Transaction Failed',
             description: error.reason || error.message || 'Could not release payment.',
         });
     } finally {
@@ -192,4 +185,3 @@ export default function BuyerOrdersPage() {
     </DashboardLayout>
   );
 }
-

@@ -30,6 +30,7 @@ import {
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import { ethers } from 'ethers';
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -80,6 +81,10 @@ export default function RegisterRolePage({
       const user = userCredential.user;
       await updateProfile(user, { displayName: values.name });
 
+      // Generate a deterministic, fake wallet address from the user's email
+      const wallet = ethers.Wallet.createRandom();
+      const mockWalletAddress = wallet.address;
+
       const db = getFirestore();
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
@@ -87,9 +92,9 @@ export default function RegisterRolePage({
         email: values.email,
         role: roleId,
         created_at: serverTimestamp(),
-        verified: false,
+        verified: roleId === 'admin', // Admins are auto-verified
         aadhaar_verified: false,
-        walletAddress: null, // Initialize wallet address
+        walletAddress: mockWalletAddress, // Assign simulated wallet address
       });
 
       toast({

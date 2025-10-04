@@ -14,12 +14,11 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase/provider';
-import { addDoc, collection, serverTimestamp, setDoc, doc } from 'firebase/firestore';
+import { collection, serverTimestamp, setDoc, doc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import Image from 'next/image';
 import { getProductProvenanceContract } from '@/lib/blockchain';
-import { ethers } from 'ethers';
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const productSchema = z.object({
@@ -64,7 +63,7 @@ export default function NewProductPage() {
             toast({
                 variant: 'destructive',
                 title: 'Wallet Not Connected',
-                description: 'Please connect your wallet on the dashboard before adding a product.',
+                description: 'A simulated wallet is required. Please re-register if you do not have one.',
             });
             setIsSubmitting(false);
             return;
@@ -89,17 +88,14 @@ export default function NewProductPage() {
                 imageUrl = await getDownloadURL(snapshot.ref);
             }
             
-
-            // Step 3: Register product on the blockchain
-            toast({ title: 'Registering on Blockchain...', description: 'Please approve the transaction in your wallet.' });
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await provider.getSigner();
-            const provenanceContract = getProductProvenanceContract(signer);
+            // Step 3: Register product on the blockchain (SIMULATED)
+            toast({ title: 'Registering on Blockchain (Simulated)...', description: 'This will be instant.' });
+            const provenanceContract = getProductProvenanceContract(null as any); // Signer not needed for mock
 
             const tx = await provenanceContract.registerProduct(productId, values.name, values.category);
             toast({
-                title: 'Processing Blockchain Transaction',
-                description: `Waiting for confirmation... Tx: ${tx.hash.slice(0, 10)}...`,
+                title: 'Processing Mock Transaction',
+                description: `Waiting for mock confirmation... Tx: ${tx.hash.slice(0, 10)}...`,
             });
 
             await tx.wait();
@@ -125,7 +121,7 @@ export default function NewProductPage() {
             toast({
                 variant: 'success',
                 title: 'Product Listed Successfully!',
-                description: `${values.name} is now on the marketplace and registered on the blockchain.`,
+                description: `${values.name} is now on the marketplace and registered on the mock blockchain.`,
             });
             
             router.push('/farmer/products');

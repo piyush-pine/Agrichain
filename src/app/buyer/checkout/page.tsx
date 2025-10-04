@@ -12,7 +12,6 @@ import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { ConnectWalletButton } from '@/components/blockchain/ConnectWalletButton';
 import { getEscrowPaymentContract, getProductProvenanceContract } from '@/lib/blockchain';
 import { ethers } from 'ethers';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -25,7 +24,6 @@ export default function CheckoutPage() {
     const router = useRouter();
     const { cartItems, isLoading, mergeLocalCartWithFirestore } = useCart();
 
-    const [walletAddress, setWalletAddress] = useState<string | null>(null);
     const [isPlacingOrder, setIsPlacingOrder] = useState(false);
     const [farmerWalletAddress, setFarmerWalletAddress] = useState<string | null>(null);
 
@@ -59,11 +57,11 @@ export default function CheckoutPage() {
 
 
     const handlePlaceOrder = async () => {
-        if (!user || !cartItems || cartItems.length === 0 || !walletAddress || !farmerId || !firestore) {
+        if (!user || !cartItems || cartItems.length === 0 || !user.walletAddress || !farmerId || !firestore) {
             toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: 'Cannot place order. Ensure you are logged in, your cart is not empty, and your wallet is connected.',
+                description: 'Cannot place order. Ensure you are logged in and your cart is not empty.',
             });
             return;
         }
@@ -102,10 +100,8 @@ export default function CheckoutPage() {
             const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
             orderId = orderRef.id;
 
-            // 2. Initiate Escrow Payment on Blockchain
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const signer = await provider.getSigner();
-            const escrowContract = getEscrowPaymentContract(signer);
+            // 2. Initiate Escrow Payment on Blockchain (SIMULATED)
+            const escrowContract = getEscrowPaymentContract(null as any); // Signer not needed for mock
             
             const transaction = await escrowContract.initiateEscrow(
                 orderId,
@@ -114,22 +110,20 @@ export default function CheckoutPage() {
             );
             
             toast({
-                title: 'Processing Transaction',
-                description: `Waiting for blockchain confirmation... Tx: ${transaction.hash.slice(0, 10)}...`,
+                title: 'Processing Transaction (Simulated)',
+                description: `Waiting for mock confirmation... Tx: ${transaction.hash.slice(0, 10)}...`,
             });
             
-            await transaction.wait(); // Wait for the transaction to be mined
+            await transaction.wait(); // Wait for the mock transaction
 
-            // 3. Update Provenance Chain for each product
-            const provenanceContract = getProductProvenanceContract(signer);
+            // 3. Update Provenance Chain for each product (SIMULATED)
+            const provenanceContract = getProductProvenanceContract(null as any); // Signer not needed
             for (const item of cartItems) {
                 try {
                     const provTx = await provenanceContract.updateHistory(item.product_id, `Sold to Buyer ${user.uid.slice(0,6)} in Order #${orderId.slice(0,6)}`);
-                    await provTx.wait(1); // Wait for 1 confirmation
+                    await provTx.wait();
                 } catch (e) {
-                    // This might fail if the product wasn't registered on-chain.
-                    // We'll log it but not fail the whole transaction.
-                    console.warn(`Could not update provenance for product ${item.product_id}`, e);
+                    console.warn(`Could not update mock provenance for product ${item.product_id}`, e);
                 }
             }
             
@@ -146,14 +140,14 @@ export default function CheckoutPage() {
             
             toast({
                 title: 'Order Placed Successfully!',
-                description: `Your order #${orderId.slice(0,6)} has been confirmed and payment is secured.`,
+                description: `Your order #${orderId.slice(0,6)} has been confirmed and payment is secured in the mock escrow.`,
             });
 
             router.push('/buyer/orders');
 
         } catch (error: any) {
             console.error("Failed to place order:", error);
-            // If the blockchain transaction fails, we should ideally roll back the Firestore order creation.
+            // If the mock transaction fails, we should ideally roll back the Firestore order creation.
             if (orderId) {
                 const orderDoc = doc(firestore, 'orders', orderId);
                 // Maybe update status to 'failed' instead of deleting.
@@ -217,18 +211,18 @@ export default function CheckoutPage() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                              <div>
-                                <h3 className="text-sm font-medium mb-2">Connect Wallet</h3>
-                                <ConnectWalletButton onAddressChanged={setWalletAddress} />
-                                {walletAddress && (
-                                    <p className="text-xs text-muted-foreground mt-2">
-                                        Connected: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                                <h3 className="text-sm font-medium mb-2">Simulated Wallet</h3>
+                                <div className='flex items-center gap-2 p-3 rounded-md bg-secondary text-secondary-foreground'>
+                                    <Wallet className="h-5 w-5"/>
+                                    <p className="text-xs font-mono">
+                                        {user?.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : 'No Wallet'}
                                     </p>
-                                )}
+                                </div>
                             </div>
                             <Button 
                                 className="w-full" 
                                 size="lg" 
-                                disabled={!walletAddress || isLoading || !cartItems || cartItems.length === 0 || isPlacingOrder || !farmerWalletAddress}
+                                disabled={!user?.walletAddress || isLoading || !cartItems || cartItems.length === 0 || isPlacingOrder || !farmerWalletAddress}
                                 onClick={handlePlaceOrder}
                             >
                                 {isPlacingOrder ? 'Placing Order...' : `Place Order & Pay $${subtotal.toFixed(2)}`}
@@ -239,7 +233,7 @@ export default function CheckoutPage() {
                                 </div>
                             )}
                              <div className="text-center text-xs text-muted-foreground p-2 bg-secondary rounded-md">
-                                Clicking "Place Order" will prompt a blockchain transaction to secure your payment in a smart contract escrow.
+                                Clicking "Place Order" will simulate a blockchain transaction to secure your payment in a mock escrow.
                             </div>
                         </CardContent>
                     </Card>
