@@ -12,6 +12,7 @@ import { useCollection } from '@/firebase';
 import { collection, limit, query } from 'firebase/firestore';
 import Link from 'next/link';
 import { useCart } from '@/hooks/use-cart';
+import { exampleProducts } from '@/lib/example-products';
 
 interface PublicMarketplaceProps {
     isHomePage?: boolean;
@@ -22,15 +23,14 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
     const { addToCart } = useCart();
 
     const productsQuery = useMemoFirebase(() => {
-        if (!firestore) return null; // Wait for firestore to be available
+        if (!firestore || isHomePage) return null; // Don't fetch if on homepage
         const productsCollection = collection(firestore, "products");
-        if (isHomePage) {
-            return query(productsCollection, limit(8)); // Limit to 8 products for the homepage
-        }
         return productsCollection;
     }, [firestore, isHomePage]);
     
-    const { data: products, isLoading } = useCollection(productsQuery);
+    const { data: firestoreProducts, isLoading } = useCollection(productsQuery);
+
+    const products = isHomePage ? exampleProducts : firestoreProducts;
 
     const handleAddToCart = (e: React.MouseEvent, product: any) => {
         e.preventDefault(); // Prevent navigation when clicking the button
@@ -68,9 +68,9 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
                     </div>
                 )}
 
-                {isLoading ? (
+                {isLoading && !isHomePage ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                        {[...Array(isHomePage ? 8 : 12)].map((_, i) => (
+                        {[...Array(8)].map((_, i) => (
                              <Card key={i} className="flex flex-col animate-pulse">
                                 <div className="bg-muted h-48 w-full rounded-t-lg"></div>
                                 <CardHeader>
@@ -91,7 +91,7 @@ export function PublicMarketplace({ isHomePage = false }: PublicMarketplaceProps
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                         {products?.map((product) => (
                              <Link key={product.id} href={`/buyer/marketplace/${product.id}`} className="block h-full transition-all duration-200 hover:-translate-y-1 hover:shadow-xl rounded-lg">
-                                <Card className="flex flex-col h-full bg-card">
+                                <Card className="flex flex-col h-full bg-card dark:bg-gray-800">
                                     <div className="relative w-full h-48 rounded-t-lg overflow-hidden bg-muted">
                                         <Image 
                                             src={product.image_url || `https://picsum.photos/seed/${product.id}/400/300`} 
