@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase/provider';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, setDoc, doc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
 import Image from 'next/image';
@@ -70,16 +70,13 @@ export default function NewProductPage() {
             return;
         }
 
+        let newDocRef;
+
         try {
             // Step 1: Add product data to Firestore, get the ID first
             const productCollection = collection(firestore, 'products');
-            const docRef = await addDoc(productCollection, {
-                // Temporary data, we'll update it later
-                name: values.name,
-                farmer_id: user.uid,
-                status: 'creating'
-            });
-            const productId = docRef.id;
+            newDocRef = doc(productCollection); // Create a new doc reference with an auto-generated ID
+            const productId = newDocRef.id;
 
             // Step 2: Upload image if it exists
             let imageUrl = '';
@@ -123,7 +120,7 @@ export default function NewProductPage() {
                 iot_data: {}
             };
             
-            await setDoc(docRef, productData);
+            await setDoc(newDocRef, productData);
             
             toast({
                 variant: 'success',
@@ -134,6 +131,7 @@ export default function NewProductPage() {
             router.push('/farmer/products');
 
         } catch (error: any) {
+            // If something fails, we may need to clean up the created doc if it exists
             toast({
                 variant: 'destructive',
                 title: 'Uh oh! Something went wrong.',
