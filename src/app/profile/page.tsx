@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore } from '@/firebase/provider';
 import { doc } from 'firebase/firestore';
-import { updateProfile } from 'firebase/auth';
+import { getAuth, updateProfile } from 'firebase/auth';
 import { updateDocumentNonBlocking } from '@/firebase';
 import { Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,7 +47,7 @@ export default function ProfilePage() {
     }
   }, [user, form]);
 
-  const onSubmit = async (values: z.infer<typeof profileSchema>) => {
+  const onSubmit = (values: z.infer<typeof profileSchema>) => {
     setIsSubmitting(true);
     if (!user || !firestore) {
       toast({
@@ -59,38 +59,36 @@ export default function ProfilePage() {
       return;
     }
 
-    try {
-      const userRef = doc(firestore, 'users', user.uid);
-      const dataToUpdate: { name: string; companyName?: string } = {
-        name: values.name,
-      };
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
 
-      if (values.companyName) {
-        dataToUpdate.companyName = values.companyName;
-      }
-
-      // Update Firestore document
-      updateDocumentNonBlocking(userRef, dataToUpdate);
-
-      // Update Firebase Auth profile if display name changed
-      if (user.displayName !== values.name) {
-        await updateProfile(user, { displayName: values.name });
-      }
-
-      toast({
-        variant: 'success',
-        title: 'Profile Updated',
-        description: 'Your information has been saved successfully.',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: error.message || 'An unexpected error occurred.',
-      });
-    } finally {
-      setIsSubmitting(false);
+    if (!currentUser) {
+        setIsSubmitting(false);
+        return;
     }
+
+    const userRef = doc(firestore, 'users', user.uid);
+    const dataToUpdate: { name: string; companyName?: string } = {
+      name: values.name,
+    };
+
+    if (values.companyName) {
+      dataToUpdate.companyName = values.companyName;
+    }
+
+    updateDocumentNonBlocking(userRef, dataToUpdate);
+
+    if (user.displayName !== values.name) {
+      updateProfile(currentUser, { displayName: values.name });
+    }
+
+    toast({
+      variant: 'success',
+      title: 'Profile Updated',
+      description: 'Your information has been saved successfully.',
+    });
+    
+    setIsSubmitting(false);
   };
 
   return (

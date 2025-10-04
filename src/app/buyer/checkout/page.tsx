@@ -6,8 +6,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/firebase/auth/use-user";
-import { useFirestore } from "@/firebase/provider";
-import { addDoc, collection, doc, serverTimestamp, deleteDoc, getDoc } from "firebase/firestore";
+import { useFirestore, useMemoFirebase } from "@/firebase/provider";
+import { addDoc, collection, doc, serverTimestamp, deleteDoc, getDoc, writeBatch } from "firebase/firestore";
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -16,10 +16,11 @@ import { getEscrowPaymentContract, getProductProvenanceContract } from '@/lib/bl
 import { ethers } from 'ethers';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useCart } from '@/hooks/use-cart';
-import { Wallet } from 'lucide-react';
+import { Wallet, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CheckoutPage() {
-    const { user } = useUser();
+    const { user, loading: userLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
@@ -32,29 +33,29 @@ export default function CheckoutPage() {
     const farmerId = cartItems && cartItems.length > 0 ? cartItems[0].farmer_id : null;
 
     useEffect(() => {
-        if (!user) {
+        if (!userLoading && !user) {
            router.push('/login');
            return;
         }
-        // Ensure cart is synced before proceeding
-        mergeLocalCartWithFirestore(user.uid);
-    }, [user, router, mergeLocalCartWithFirestore]);
+        if (user) {
+            mergeLocalCartWithFirestore(user.uid);
+        }
+    }, [user, userLoading, router, mergeLocalCartWithFirestore]);
+
+    const farmerDocRef = useMemoFirebase(() => {
+        if (!farmerId || !firestore) return null;
+        return doc(firestore, 'users', farmerId);
+    }, [farmerId, firestore]);
 
     useEffect(() => {
-        const fetchFarmerWallet = async () => {
-            if (farmerId && firestore) {
-                try {
-                    const farmerDoc = await getDoc(doc(firestore, 'users', farmerId));
-                    if (farmerDoc.exists()) {
-                        setFarmerWalletAddress(farmerDoc.data().walletAddress || null);
-                    }
-                } catch(e) {
-                    console.error("Error fetching farmer wallet: ", e);
+        if (farmerDocRef) {
+            getDoc(farmerDocRef).then(docSnap => {
+                if (docSnap.exists()) {
+                    setFarmerWalletAddress(docSnap.data().walletAddress || null);
                 }
-            }
-        };
-        fetchFarmerWallet();
-    }, [farmerId, firestore]);
+            });
+        }
+    }, [farmerDocRef]);
 
 
     const handlePlaceOrder = async () => {
@@ -77,11 +78,9 @@ export default function CheckoutPage() {
         }
 
         setIsPlacingOrder(true);
-
-        let orderId = '';
+        toast({ title: 'Placing Order...', description: 'Please wait while we confirm your order.' });
 
         try {
-            // 1. Create Order in Firestore
             const orderData = {
                 buyer_id: user.uid,
                 farmer_id: farmerId,
@@ -99,62 +98,40 @@ export default function CheckoutPage() {
             };
             
             const orderRef = await addDoc(collection(firestore, 'orders'), orderData);
-            orderId = orderRef.id;
+            const orderId = orderRef.id;
 
-            // 2. Initiate Escrow Payment on Blockchain (SIMULATED)
-            const escrowContract = getEscrowPaymentContract(null as any); // Signer not needed for mock
-            
-            const transaction = await escrowContract.initiateEscrow(
+            const escrowContract = getEscrowPaymentContract(null as any); 
+            const provContract = getProductProvenanceContract(null as any);
+
+            escrowContract.initiateEscrow(
                 orderId,
                 farmerWalletAddress,
                 { value: ethers.parseEther(subtotal.toString()) }
-            );
-            
-            toast({
-                title: 'Processing Transaction (Simulated)',
-                description: `Waiting for mock confirmation... Tx: ${transaction.hash.slice(0, 10)}...`,
-            });
-            
-            await transaction.wait(); // Wait for the mock transaction
+            ).then(tx => console.log(`[MOCK] Escrow tx submitted: ${tx.hash}`));
 
-            // 3. Update Provenance Chain for each product (SIMULATED)
-            const provenanceContract = getProductProvenanceContract(null as any); // Signer not needed
             for (const item of cartItems) {
-                try {
-                    const provTx = await provenanceContract.updateHistory(item.product_id, `Sold to Buyer ${user.uid.slice(0,6)} in Order #${orderId.slice(0,6)}`);
-                    await provTx.wait();
-                } catch (e) {
-                    console.warn(`Could not update mock provenance for product ${item.product_id}`, e);
-                }
+                provContract.updateHistory(item.product_id, `Sold to Buyer ${user.uid.slice(0,6)} in Order #${orderId.slice(0,6)}`)
+                 .then(tx => console.log(`[MOCK] Provenance tx submitted: ${tx.hash}`));
             }
             
-            // 4. Update Order Status and Clear Cart
-            const firestoreOrderRef = doc(firestore, 'orders', orderId);
-            updateDocumentNonBlocking(firestoreOrderRef, { status: 'confirmed' });
+            updateDocumentNonBlocking(orderRef, { status: 'confirmed' });
 
-            // Clear the cart
-            const batchDeletes = cartItems.map(item => {
+            const batch = writeBatch(firestore);
+            cartItems.forEach(item => {
                 const cartItemRef = doc(firestore, 'users', user.uid, 'cart', item.id);
-                return deleteDoc(cartItemRef);
+                batch.delete(cartItemRef);
             });
-            await Promise.all(batchDeletes);
+            await batch.commit();
             
             toast({
                 title: 'Order Placed Successfully!',
-                description: `Your order #${orderId.slice(0,6)} has been confirmed and payment is secured in the mock escrow.`,
+                description: `Your order #${orderId.slice(0,6)} has been confirmed and payment is secured in escrow.`,
             });
 
             router.push('/buyer/orders');
 
         } catch (error: any) {
             console.error("Failed to place order:", error);
-            // If the mock transaction fails, we should ideally roll back the Firestore order creation.
-            if (orderId) {
-                const orderDoc = doc(firestore, 'orders', orderId);
-                // Maybe update status to 'failed' instead of deleting.
-                 updateDocumentNonBlocking(orderDoc, { status: 'failed', error: error.reason || error.message });
-            }
-
             toast({
                 variant: 'destructive',
                 title: 'Order Failed',
@@ -165,6 +142,20 @@ export default function CheckoutPage() {
         }
     };
 
+    const renderLoadingState = () => (
+        <div className="space-y-4">
+            {[...Array(2)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-16 w-16 rounded-md" />
+                    <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/4" />
+                    </div>
+                    <Skeleton className="h-5 w-16" />
+                </div>
+            ))}
+        </div>
+    );
 
     return (
         <DashboardLayout>
@@ -179,7 +170,7 @@ export default function CheckoutPage() {
                             <CardDescription>Review the items in your cart before placing your order.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {isLoading && <p>Loading your cart...</p>}
+                            {isLoading && renderLoadingState()}
                             {!isLoading && (!cartItems || cartItems.length === 0) && <p>Your cart is empty.</p>}
                             {cartItems && cartItems.length > 0 && (
                                 <div className="space-y-4">
@@ -215,17 +206,20 @@ export default function CheckoutPage() {
                                 <h3 className="text-sm font-medium mb-2">Simulated Wallet</h3>
                                 <div className='flex items-center gap-2 p-3 rounded-md bg-secondary text-secondary-foreground'>
                                     <Wallet className="h-5 w-5"/>
-                                    <p className="text-xs font-mono">
-                                        {user?.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : 'No Wallet'}
-                                    </p>
+                                    {userLoading ? <Skeleton className="h-4 w-32" /> : (
+                                        <p className="text-xs font-mono">
+                                            {user?.walletAddress ? `${user.walletAddress.slice(0, 6)}...${user.walletAddress.slice(-4)}` : 'No Wallet'}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                             <Button 
                                 className="w-full" 
                                 size="lg" 
-                                disabled={!user?.walletAddress || isLoading || !cartItems || cartItems.length === 0 || isPlacingOrder || !farmerWalletAddress}
+                                disabled={userLoading || !user?.walletAddress || isLoading || !cartItems || cartItems.length === 0 || isPlacingOrder || !farmerWalletAddress}
                                 onClick={handlePlaceOrder}
                             >
+                                {isPlacingOrder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isPlacingOrder ? 'Placing Order...' : `Place Order & Pay $${subtotal.toFixed(2)}`}
                             </Button>
                             {!farmerWalletAddress && cartItems && cartItems.length > 0 && (

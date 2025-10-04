@@ -23,12 +23,13 @@ import { useToast } from '@/hooks/use-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase/auth/use-user';
 import { useEffect, useState } from 'react';
 import { useCart } from '@/hooks/use-cart';
 import { Loader2 } from 'lucide-react';
+import { initiateEmailSignIn } from '@/firebase';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -44,6 +45,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { user, loading: isUserLoading } = useUser();
   const { mergeLocalCartWithFirestore } = useCart();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -53,10 +55,7 @@ export default function LoginPage() {
     },
   });
 
-  // This effect reliably handles redirection AFTER a successful login and data fetch.
   useEffect(() => {
-    // We only redirect if the user object exists AND has the role property.
-    // This prevents redirecting before Firestore data is loaded.
     if (!isUserLoading && user && user.role) {
       mergeLocalCartWithFirestore(user.uid);
       const redirectUrl = localStorage.getItem('redirectAfterLogin') || `/${user.role}/dashboard`;
@@ -66,7 +65,8 @@ export default function LoginPage() {
   }, [user, isUserLoading, router, mergeLocalCartWithFirestore]);
 
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
     const auth = getAuth();
     
     toast({
@@ -74,41 +74,12 @@ export default function LoginPage() {
         description: 'Please wait.',
     });
 
-    try {
-      // Awaiting here is crucial to catch errors and manage the form's submitting state.
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      // On success, we don't redirect here. The useEffect above will handle it
-      // once the useUser hook is updated with the complete user profile.
-    } catch (error: any) {
-        let errorMessage = 'An unexpected error occurred.';
-        // Handle specific Firebase auth errors for better user feedback
-        switch (error.code) {
-            case 'auth/user-not-found':
-            case 'auth/wrong-password':
-            case 'auth/invalid-credential':
-                errorMessage = 'Invalid email or password. Please try again.';
-                break;
-            case 'auth/too-many-requests':
-                errorMessage = 'Too many login attempts. Your account has been temporarily disabled.';
-                break;
-            default:
-                 errorMessage = error.message;
-                 break;
-        }
-        
-        toast({
-            variant: 'destructive',
-            title: 'Login Failed',
-            description: errorMessage,
-        });
-    }
-    // The isSubmitting state is automatically managed by react-hook-form
-    // because the onSubmit handler is `async`.
+    initiateEmailSignIn(auth, values.email, values.password);
+    // Don't await. Redirection is handled by the useEffect hook.
+    // The isSubmitting state will be true until the user object is loaded and redirection occurs.
   }
   
-  // Show a loading screen if the `useUser` hook is working or if we have a user
-  // and are just waiting for the redirect effect to fire.
-  if (isUserLoading || (user && user.role)) {
+  if (isUserLoading || (user && user.role) || isSubmitting) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
             <div className="flex flex-col items-center gap-4">
@@ -119,7 +90,6 @@ export default function LoginPage() {
     );
   }
 
-  // Default state: show the login form.
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">

@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { releasePaymentFromEscrow } from '@/lib/blockchain';
-import { QrCode } from 'lucide-react';
+import { QrCode, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import QRCode from 'react-qr-code';
 
@@ -47,58 +47,53 @@ export default function BuyerOrdersPage() {
 
   const { data: orders, isLoading } = useCollection(ordersQuery);
 
-  const handleConfirmDelivery = async (order: any) => {
+  const handleConfirmDelivery = (order: any) => {
      if (!order.farmer_wallet_address) {
         toast({ variant: 'destructive', title: 'Error', description: 'Farmer wallet address is not available for this order.' });
         return;
     }
 
     setIsConfirming(order.id);
+    toast({ title: 'Confirming Delivery (Simulated)...', description: 'Releasing payment from escrow.' });
 
-    try {
-        toast({ title: 'Confirming Delivery (Simulated)...', description: 'Simulating transaction to release payment.' });
-        
-        // The signer is not needed for the mock function
-        const tx = await releasePaymentFromEscrow(null as any, order.id);
-        
-        toast({ title: 'Processing Mock Transaction', description: `Waiting for confirmation... Tx: ${tx.hash.slice(0,10)}...` });
-        await tx.wait();
+    releasePaymentFromEscrow(null as any, order.id)
+        .then(tx => {
+            console.log(`[MOCK] Payment release tx submitted: ${tx.hash}`);
 
-        const orderRef = doc(firestore, 'orders', order.id);
-        updateDocumentNonBlocking(orderRef, { status: 'delivered', escrow_released: true });
-        
-        // Award sustainability tokens to the farmer for timely delivery
-        const rewardsCollection = collection(firestore, 'rewards');
-        addDocumentNonBlocking(rewardsCollection, {
-            user_id: order.farmer_id,
-            type: 'timely-delivery',
-            points: 15,
-            order_id: order.id,
-            verified: true,
-            issued_at: serverTimestamp(),
+            const orderRef = doc(firestore, 'orders', order.id);
+            updateDocumentNonBlocking(orderRef, { status: 'delivered', escrow_released: true });
+            
+            const rewardsCollection = collection(firestore, 'rewards');
+            addDocumentNonBlocking(rewardsCollection, {
+                user_id: order.farmer_id,
+                type: 'timely-delivery',
+                points: 15,
+                order_id: order.id,
+                verified: true,
+                issued_at: serverTimestamp(),
+            });
+
+            setTimeout(() => {
+                updateDocumentNonBlocking(orderRef, { status: 'paid' });
+            }, 2000); 
+
+            toast({
+                variant: 'success',
+                title: 'Payment Released! (Simulated)',
+                description: `You've confirmed delivery. Mock funds sent & farmer rewarded.`,
+            });
+        })
+        .catch(error => {
+            console.error("Failed to release payment:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Mock Transaction Failed',
+                description: error.reason || error.message || 'Could not release payment.',
+            });
+        })
+        .finally(() => {
+            setIsConfirming(null);
         });
-
-        // This could be a separate process, but for now we'll mark as paid shortly after.
-        setTimeout(() => {
-             updateDocumentNonBlocking(orderRef, { status: 'paid' });
-        }, 2000); 
-
-        toast({
-            variant: 'success',
-            title: 'Payment Released! (Simulated)',
-            description: `You've confirmed delivery. Mock funds sent & farmer rewarded.`,
-        });
-
-    } catch (error: any) {
-        console.error("Failed to release payment:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Mock Transaction Failed',
-            description: error.reason || error.message || 'Could not release payment.',
-        });
-    } finally {
-        setIsConfirming(null);
-    }
   };
 
   const getProductUrl = (productId: string) => {
@@ -166,6 +161,7 @@ export default function BuyerOrdersPage() {
                                             onClick={() => handleConfirmDelivery(order)}
                                             disabled={isConfirming === order.id}
                                         >
+                                            {isConfirming === order.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                             {isConfirming === order.id ? 'Confirming...' : 'Confirm Delivery'}
                                         </Button>
                                     )}

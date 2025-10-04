@@ -32,6 +32,7 @@ import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { ethers } from 'ethers';
 import { setDocumentNonBlocking } from '@/firebase';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -73,8 +74,9 @@ export default function RegisterRolePage({
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
+    const auth = getAuth();
+
     try {
-      const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         values.email,
@@ -84,24 +86,21 @@ export default function RegisterRolePage({
       const user = userCredential.user;
       await updateProfile(user, { displayName: values.name });
 
-      // Generate a deterministic, fake wallet address
       const wallet = ethers.Wallet.createRandom();
       const mockWalletAddress = wallet.address;
 
       const db = getFirestore();
       
-      // IMPORTANT: Do not await this. Let it run in the background.
-      // This makes the UI feel instant. The useUser hook will pick up the role when ready.
       setDocumentNonBlocking(doc(db, 'users', user.uid), {
         uid: user.uid,
         name: values.name,
         email: values.email,
         role: roleId,
         created_at: serverTimestamp(),
-        verified: roleId === 'admin', // Admins are auto-verified
+        verified: roleId === 'admin',
         aadhaar_verified: false,
         disabled: false,
-        walletAddress: mockWalletAddress, // Assign simulated wallet address
+        walletAddress: mockWalletAddress,
       }, { merge: false });
 
       toast({
@@ -109,7 +108,6 @@ export default function RegisterRolePage({
         description: `Welcome to AgriClear, ${values.name}! Redirecting...`,
       });
 
-      // Redirect immediately after auth is successful.
       router.push(`/${roleId}/dashboard`);
 
     } catch (error: any) {
@@ -118,9 +116,7 @@ export default function RegisterRolePage({
         title: 'Registration Failed',
         description: error.message,
       });
-    } finally {
-        // This GUARANTEES the button state is reset, even if an error occurs.
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   }
 
@@ -174,6 +170,7 @@ export default function RegisterRolePage({
                 )}
               />
               <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isSubmitting ? 'Registering...' : 'Register'}
               </Button>
             </form>

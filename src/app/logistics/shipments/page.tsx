@@ -127,13 +127,14 @@ export default function ShipmentsPage() {
   const { toast } = useToast();
 
   const shipmentsQuery = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !firestore) return null;
     return query(collection(firestore, "shipments"), where("logistics_id", "==", user.uid));
   }, [user, firestore]);
 
   const { data: shipments, isLoading } = useCollection(shipmentsQuery);
 
   const handleUpdateStatus = (shipmentId: string, newStatus: string) => {
+    if (!firestore) return;
     const shipmentRef = doc(firestore, 'shipments', shipmentId);
     updateDocumentNonBlocking(shipmentRef, { status: newStatus });
     toast({
@@ -212,5 +213,3 @@ export default function ShipmentsPage() {
     </DashboardLayout>
   );
 }
-
-    

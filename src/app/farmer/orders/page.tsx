@@ -9,11 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from '@/firebase/auth/use-user';
 import { useFirestore, useMemoFirebase } from '@/firebase/provider';
-import { useCollection, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { useCollection, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { doc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -39,11 +37,12 @@ export default function FarmerOrdersPage() {
     const firestore = useFirestore();
 
     const ordersQuery = useMemoFirebase(() => {
-        if (!user) return null;
+        if (!user || !firestore) return null;
         return query(collection(firestore, "orders"), where("farmer_id", "==", user.uid));
     }, [user, firestore]);
 
     const logisticsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
         return query(collection(firestore, "users"), where("role", "==", "logistics"));
     }, [firestore]);
 
@@ -124,20 +123,17 @@ function OrderTable({ orders, firestore, logisticsPartners }: { orders: any[], f
             return;
         }
 
-        // 1. Update order status
         const orderRef = doc(firestore, 'orders', order.id);
         updateDocumentNonBlocking(orderRef, { status: 'shipped' });
 
-        // 2. Create shipment document
         const shipmentCollection = collection(firestore, 'shipments');
         const shipmentData = {
             order_id: order.id,
             logistics_id: logisticsId,
-            status: 'picked', // Initial status for a new shipment
+            status: 'picked',
             created_at: serverTimestamp(),
-            // You can add more details from the order if needed
-            origin: "Farmer's Location", // Placeholder
-            destination: "Buyer's Location", // Placeholder
+            origin: "Farmer's Location", 
+            destination: "Buyer's Location",
             items: order.items,
         };
         addDocumentNonBlocking(shipmentCollection, shipmentData);

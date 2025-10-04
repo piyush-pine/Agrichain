@@ -1,11 +1,10 @@
 
 'use client';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
-import { doc, DocumentData, getDoc } from 'firebase/firestore';
+import { doc, DocumentData, getDoc, onSnapshot } from 'firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth, useFirestore } from '../provider';
 
-// Extend the user object to include a 'role'
 export type AppUser = User &
   DocumentData & {
     role?: string;
@@ -18,17 +17,6 @@ type UserState = {
 
 const UserContext = createContext<UserState | null>(null);
 
-/**
- * A provider that makes the current user available to its children.
- *
- * This provider listens for changes to the authentication state and updates
- * the user context accordingly. It also fetches the user's profile from
- * Firestore and merges it with the user object, including the user's role.
- *
- * You can use the `useUser` hook to access the current user.
- *
- * This provider must be used within a `FirebaseProvider` component.
- */
 export const UserProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
@@ -46,36 +34,41 @@ export const UserProvider: React.FC<{
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // User is signed in, now fetch their role from Firestore.
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            // Combine the auth user object with the Firestore data
-            setUserState({
-              user: { ...user, ...userData, role: userData.role },
-              loading: false,
-            });
-          } else {
-            // Firestore document doesn't exist, but user is authenticated.
-            // This might happen briefly during registration.
+        // User is signed in. Now, set up a real-time listener for their profile.
+        const userDocRef = doc(db, 'users', user.uid);
+        const unsubscribeProfile = onSnapshot(
+          userDocRef,
+          (docSnap) => {
+            if (docSnap.exists()) {
+              const userData = docSnap.data();
+              setUserState({
+                user: { ...user, ...userData, role: userData.role },
+                loading: false,
+              });
+            } else {
+              // This case can happen briefly during registration before the user doc is created.
+              setUserState({ user: { ...user, role: undefined }, loading: false });
+            }
+          },
+          (error) => {
+            // Firestore permission denied or other error. Gracefully handle it.
+            // User is still authenticated via Firebase Auth.
             setUserState({ user: { ...user, role: undefined }, loading: false });
           }
-        } catch (error) {
-           // Handle error fetching user document, e.g., client is offline.
-           // The user is still authenticated, just without their Firestore profile data.
-           setUserState({ user: { ...user, role: undefined }, loading: false });
-        }
+        );
+
+        // Return a cleanup function for the profile listener.
+        return () => unsubscribeProfile();
       } else {
         // User is signed out.
         setUserState({ user: null, loading: false });
       }
     });
 
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
+    // Cleanup auth subscription on unmount
+    return () => unsubscribeAuth();
   }, [auth, db]);
 
   return (
@@ -83,11 +76,6 @@ export const UserProvider: React.FC<{
   );
 };
 
-/**
- * A hook that returns the current user, their role, and loading state.
- *
- * This hook must be used within a `UserProvider` component.
- */
 export const useUser = (): UserState => {
   const context = useContext(UserContext);
   if (context === null) {
