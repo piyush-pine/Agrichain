@@ -13,6 +13,7 @@ import { useCollection } from "@/firebase";
 import { collection, query, where, orderBy, limit } from "firebase/firestore";
 import { useFirestore, useMemoFirebase } from "@/firebase/provider";
 import React from "react";
+import { ConnectWalletBanner } from "@/components/blockchain/ConnectWalletBanner";
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" | "success" } = {
   shipped: "default",
@@ -59,6 +60,7 @@ export default function FarmerDashboardPage() {
 
   return (
     <DashboardLayout>
+        {!user?.walletAddress && <ConnectWalletBanner />}
         <div className="flex items-center justify-between mb-6">
             <div>
                 <h1 className="text-3xl font-bold">Welcome, {user?.displayName || 'Farmer'}!</h1>

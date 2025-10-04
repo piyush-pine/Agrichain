@@ -64,7 +64,7 @@ export default function NewProductPage() {
             toast({
                 variant: 'destructive',
                 title: 'Wallet Not Connected',
-                description: 'Your simulated wallet is being created. Please try again in a few moments.',
+                description: 'Please connect your wallet from the dashboard before adding a product.',
             });
             setIsSubmitting(false);
             return;
